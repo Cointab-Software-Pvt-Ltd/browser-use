@@ -44,7 +44,6 @@ async def run_org_agent(
         save_agent_history_path,
         save_trace_path,
         task,
-        history_file_input,
         max_steps,
         use_vision,
         max_actions_per_step,
@@ -90,8 +89,6 @@ async def run_org_agent(
                     ),
                 )
             )
-        if task is None:
-            task = ""
 
         if _global_agent is None:
             _global_agent = Agent(
@@ -103,10 +100,7 @@ async def run_org_agent(
                 max_actions_per_step=max_actions_per_step,
                 tool_calling_method=tool_calling_method
             )
-        if history_file_input is None:
-            history = await _global_agent.run(max_steps=max_steps)
-        else:
-            history = await _global_agent.load_and_rerun(history_file_input)
+        history = await _global_agent.run(max_steps=max_steps)
 
         history_file = os.path.join(save_agent_history_path, f"{_global_agent.state.agent_id}.json")
         _global_agent.save_history(history_file)
@@ -117,6 +111,8 @@ async def run_org_agent(
         model_thoughts = history.model_thoughts()
 
         trace_file = utils.get_latest_files(save_trace_path).get('.zip')
+
+        print(_global_agent.state)
 
     except Exception as e:
         import traceback
@@ -138,8 +134,7 @@ async def run_org_agent(
 
 
 async def run_browser_agent(
-        task=None,
-        history_file=None,
+        task,
         llm_provider="openai",
         llm_model_name="gpt-4o",
         llm_num_ctx=32000,
@@ -168,6 +163,9 @@ async def run_browser_agent(
         if save_recording_path:
             os.makedirs(save_recording_path, exist_ok=True)
 
+        task = resolve_sensitive_env_variables(task)
+
+        # Run the agent
         llm = utils.get_llm_model(
             provider=llm_provider,
             model_name=llm_model_name,
@@ -176,9 +174,6 @@ async def run_browser_agent(
             base_url=llm_base_url,
             api_key=llm_api_key,
         )
-
-        if history_file is None:
-            task = resolve_sensitive_env_variables(task)
         (final_result, errors, model_actions, model_thoughts,
          trace_file, history_file, latest_video) = await run_org_agent(
             llm=llm,
@@ -192,7 +187,6 @@ async def run_browser_agent(
             save_agent_history_path=save_agent_history_path,
             save_trace_path=save_trace_path,
             task=task,
-            history_file=history_file,
             max_steps=max_steps,
             use_vision=use_vision,
             max_actions_per_step=max_actions_per_step,
@@ -200,9 +194,7 @@ async def run_browser_agent(
         )
 
         print(latest_video)
-        print(history_file)
         print(model_actions)
-
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -211,8 +203,6 @@ async def run_browser_agent(
 
 
 async def exec_tasks():
-    if os.path.exists("history.json"):
-        await run_browser_agent(history_file="history.json")
     while True:
         print("Enter next task: ")
         task_text = ""
@@ -224,7 +214,7 @@ async def exec_tasks():
             else:
                 break
         if len(task_text) > 0:
-            await run_browser_agent(task=task_text)
+            await run_browser_agent(task_text)
 
 
 asyncio.run(exec_tasks())

@@ -27,6 +27,8 @@ Example:
 Common action sequences:
 - Form filling: [{{"input_text": {{"index": 1, "text": "username"}}}}, {{"input_text": {{"index": 2, "text": "password"}}}}, {{"click_element": {{"index": 3}}}}]
 - Navigation and extraction: [{{"go_to_url": {{"url": "https://example.com"}}}}, {{"extract_content": {{"goal": "extract the names"}}}}]
+- Decision-Making: [{{"if_condition": {{"condition_lhs": "Google", "condition_rhs": "Amazon", "operator": "="}}}}]
+- Request New Action: [{{"request_action": {{"action_name": "for_loop", "action_description": "To be able to iterate over some values"}}}}]
 - Actions are executed in the given order
 - If the page changes after an action, the sequence is interrupted and you get the new state.
 - Only provide the action sequence until an action which changes the page state significantly.
@@ -34,7 +36,7 @@ Common action sequences:
 - only use multiple actions if it makes sense.
 
 3. ELEMENT INTERACTION:
-- Only use indexes of the interactive elements
+- Only use xpath, if not present then indexes, of the interactive elements
 - Elements marked with "[]Non-interactive text" are non-interactive
 
 4. NAVIGATION & ERROR HANDLING:

@@ -574,7 +574,8 @@ class Agent(Generic[Context]):
 
 	# @observe(name='agent.run', ignore_output=True)
 	@time_execution_async('--run (agent)')
-	async def run(self, max_steps: int = 100) -> AgentHistoryList:
+	async def run(self, max_steps: int = 100,
+                  after_step_func: Callable = None) -> AgentHistoryList:
 		"""Execute the task with maximum number of steps"""
 		try:
 			self._log_agent_run()
@@ -602,6 +603,9 @@ class Agent(Generic[Context]):
 
 				step_info = AgentStepInfo(step_number=step, max_steps=max_steps)
 				await self.step(step_info)
+
+				if after_step_func is not None:
+					await after_step_func(self)
 
 				if self.state.history.is_done():
 					if self.settings.validate_output and step < max_steps - 1:

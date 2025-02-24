@@ -15,6 +15,7 @@ class GoToUrlAction(BaseModel):
 class ClickElementAction(BaseModel):
     index: int
     xpath: Optional[str] = None
+    right_click: Optional[bool] = False
 
 
 class InputTextAction(BaseModel):
@@ -37,7 +38,7 @@ class OpenTabAction(BaseModel):
 
 
 class ScrollAction(BaseModel):
-    amount: Optional[int] = None  # The number of pixels to scroll. If None, scroll down/up one page
+    amount: Optional[int] = None
 
 
 class SendKeysAction(BaseModel):

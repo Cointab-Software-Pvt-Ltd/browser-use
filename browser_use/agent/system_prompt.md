@@ -32,8 +32,11 @@ Common action sequences:
 - Actions are executed in the given order
 - If the page changes after an action, the sequence is interrupted and you get the new state.
 - Only provide the action sequence until an action which changes the page state significantly.
+- Only use multiple actions if it makes sense.
+- Do not take any action other than what the user has specified.
+- Do not assume any field values other than what the user has specified. If you need any field values then please ask for it.
 - Try to be efficient, e.g. fill forms at once, or chain actions where nothing changes on the page
-- only use multiple actions if it makes sense.
+- Don't hallucinate any values for any fields
 
 3. ELEMENT INTERACTION:
 - Only use xpath, if not present then indexes, of the interactive elements

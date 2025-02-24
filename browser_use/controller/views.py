@@ -38,7 +38,7 @@ class OpenTabAction(BaseModel):
 
 
 class ScrollAction(BaseModel):
-    amount: Optional[int] = None
+    amount: Optional[int] = None  # The number of pixels to scroll. If None, scroll down/up one page
 
 
 class SendKeysAction(BaseModel):

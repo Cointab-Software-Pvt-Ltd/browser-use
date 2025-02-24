@@ -123,6 +123,7 @@ class Controller(Generic[Context]):
             logger.info(msg)
             return ActionResult(extracted_content=pyotp.TOTP(key).now(), include_in_memory=True)
 
+        # Element Interaction Actions
         @self.registry.action('Click element', param_model=ClickElementAction)
         async def click_element(params: ClickElementAction, browser: BrowserContext):
             session = await browser.get_session()

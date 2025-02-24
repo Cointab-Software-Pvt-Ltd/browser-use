@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Dict, Generic, Optional, Type, TypeVar
 
+import pyotp
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 # from lmnr.sdk.laminar import Laminar
@@ -105,6 +106,13 @@ class Controller(Generic[Context]):
             await asyncio.sleep(seconds)
             return ActionResult(extracted_content=msg, include_in_memory=True)
 
+        # wait for x seconds
+        @self.registry.action('Generate TOTP from Key')
+        async def generate_totp(key: str):
+            msg = f'🕒  Generating TOTP for key'
+            logger.info(msg)
+            return ActionResult(extracted_content=pyotp.TOTP(key).now(), include_in_memory=True)
+
         @self.registry.action('Click element', param_model=ClickElementAction)
         async def click_element(params: ClickElementAction, browser: BrowserContext):
             session = await browser.get_session()
@@ -124,7 +132,7 @@ class Controller(Generic[Context]):
             msg = None
 
             try:
-                download_path = await browser._click_element_node(element_node)
+                download_path = await browser._click_element_node(element_node, params.right_click)
                 if download_path:
                     msg = f'💾  Downloaded file to {download_path}'
                 else:

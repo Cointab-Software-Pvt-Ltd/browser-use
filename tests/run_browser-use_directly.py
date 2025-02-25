@@ -212,16 +212,12 @@ async def run_browser_agent(
         if history_file_input is None and history_file is not None:
             print(history_file)
             data = json.load(open(history_file, 'r'))["history"]
-            data = utils.remove_error_from_history(data)
             current = []
             if os.path.exists(_global_history_file_path):
                 current = json.load(open(_global_history_file_path, 'r'))["history"]
                 current = utils.remove_completed_from_history(current)
             final = current + data
-            utils.fix_history_step_numbers(final)
-            utils.move_xpath_from_interacted_element_to_action(final)
-            final = {"history": final}
-            json.dump(final, open(_global_history_file_path, 'w'))
+            utils.fix_history_save_to_file(final, _global_history_file_path)
             print(model_actions)
 
     except Exception as e:
@@ -233,16 +229,13 @@ async def run_browser_agent(
 
 async def exec_tasks():
     is_new = True
+    global _global_history_file_path
     if os.path.exists(_global_history_file_path):
         current = json.load(open(_global_history_file_path, 'r'))["history"]
-        current = utils.remove_error_from_history(current)
-        utils.fix_history_step_numbers(current)
-        utils.move_xpath_from_interacted_element_to_action(current)
-        current = {"history": current}
-        json.dump(current, open(_global_history_file_path, 'w'))
+        utils.fix_history_save_to_file(current, _global_history_file_path)
         await run_browser_agent(history_file_input=_global_history_file_path)
         print("Steps Done, and saved for replay")
-        temp = utils.remove_completed_from_history(current["history"])
+        temp = utils.remove_completed_from_history(current)
         for idx, step in enumerate(temp):
             is_new = False
             print(str(idx + 1), step["model_output"]["current_state"]["next_goal"])

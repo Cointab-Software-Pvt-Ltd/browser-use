@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from pathlib import Path
@@ -237,3 +238,17 @@ def add_delay_after_browser_actions_if_not_present(history):
                 is_browser_action = False
             new_action.append(action)
             new_interacted_element.append(interacted_element)
+        history_item["model_output"]["action"] = new_action
+        history_item["state"]["interacted_element"] = new_interacted_element
+    if is_browser_action:
+        history[-1]["model_output"]["action"].append({"wait": {"seconds": 2}})
+        history[-1]["state"]["interacted_element"].append(None)
+
+
+def fix_history_save_to_file(history, file_path):
+    remove_error_from_history(history)
+    fix_history_step_numbers(history)
+    move_xpath_from_interacted_element_to_action(history)
+    add_delay_after_browser_actions_if_not_present(history)
+    final = {"history": history}
+    json.dump(final, open(file_path, 'w'))

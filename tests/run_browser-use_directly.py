@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import re
 
@@ -14,6 +15,9 @@ from browser_use.support import utils
 _global_browser = None
 _global_browser_context = None
 _global_agent = None
+
+_global_history_file_path = "history.json"
+_global_secret_file_path = "secret.json"
 
 window_width = pyautogui.size()[0] * 0.8
 window_height = pyautogui.size()[1] * 0.8
@@ -57,7 +61,7 @@ async def run_org_agent(
     history_file = None
     trace_file = None
     try:
-        global _global_browser, _global_browser_context, _global_agent
+        global _global_browser, _global_browser_context, _global_agent, _global_secret_file_path
         extra_chromium_args = [f"--window-size={window_w},{window_h}"]
         if use_own_browser:
             chrome_path = os.getenv("CHROME_PATH", None)
@@ -94,8 +98,12 @@ async def run_org_agent(
             task = ""
 
         if _global_agent is None:
+            sensitive_data = None
+            if os.path.exists(_global_secret_file_path):
+                sensitive_data = json.load(open(_global_secret_file_path, 'r'))
             _global_agent = Agent(
                 task=task,
+                sensitive_data=sensitive_data,
                 llm=llm,
                 use_vision=use_vision,
                 browser=_global_browser,
@@ -105,18 +113,17 @@ async def run_org_agent(
             )
         if history_file_input is None:
             history = await _global_agent.run(max_steps=max_steps)
+
+            history_file = os.path.join(save_agent_history_path, f"{_global_agent.state.agent_id}.json")
+            _global_agent.save_history(history_file)
+
+            final_result = history.final_result()
+            errors = history.errors()
+            model_actions = history.model_actions()
+            model_thoughts = history.model_thoughts()
+            trace_file = utils.get_latest_files(save_trace_path).get('.zip')
         else:
-            history = await _global_agent.load_and_rerun(history_file_input)
-
-        history_file = os.path.join(save_agent_history_path, f"{_global_agent.state.agent_id}.json")
-        _global_agent.save_history(history_file)
-
-        final_result = history.final_result()
-        errors = history.errors()
-        model_actions = history.model_actions()
-        model_thoughts = history.model_thoughts()
-
-        trace_file = utils.get_latest_files(save_trace_path).get('.zip')
+            await _global_agent.load_and_rerun(history_file_input)
 
     except Exception as e:
         import traceback
@@ -139,7 +146,7 @@ async def run_org_agent(
 
 async def run_browser_agent(
         task=None,
-        history_file=None,
+        history_file_input=None,
         llm_provider="openai",
         llm_model_name="gpt-4o",
         llm_num_ctx=32000,
@@ -161,6 +168,7 @@ async def run_browser_agent(
         max_actions_per_step=50,
         tool_calling_method="auto"
 ):
+    global _global_history_file_path
     try:
         if not enable_recording:
             save_recording_path = None
@@ -177,8 +185,9 @@ async def run_browser_agent(
             api_key=llm_api_key,
         )
 
-        if history_file is None:
+        if history_file_input is None:
             task = resolve_sensitive_env_variables(task)
+
         (final_result, errors, model_actions, model_thoughts,
          trace_file, history_file, latest_video) = await run_org_agent(
             llm=llm,
@@ -192,7 +201,7 @@ async def run_browser_agent(
             save_agent_history_path=save_agent_history_path,
             save_trace_path=save_trace_path,
             task=task,
-            history_file=history_file,
+            history_file_input=history_file_input,
             max_steps=max_steps,
             use_vision=use_vision,
             max_actions_per_step=max_actions_per_step,
@@ -200,8 +209,20 @@ async def run_browser_agent(
         )
 
         print(latest_video)
-        print(history_file)
-        print(model_actions)
+        if history_file_input is None and history_file is not None:
+            print(history_file)
+            data = json.load(open(history_file, 'r'))["history"]
+            data = utils.remove_error_from_history(data)
+            current = []
+            if os.path.exists(_global_history_file_path):
+                current = json.load(open(_global_history_file_path, 'r'))["history"]
+                current = utils.remove_completed_from_history(current)
+            final = current + data
+            utils.fix_history_step_numbers(final)
+            utils.move_xpath_from_interacted_element_to_action(final)
+            final = {"history": final}
+            json.dump(final, open(_global_history_file_path, 'w'))
+            print(model_actions)
 
     except Exception as e:
         import traceback
@@ -211,10 +232,26 @@ async def run_browser_agent(
 
 
 async def exec_tasks():
-    if os.path.exists("history.json"):
-        await run_browser_agent(history_file="history.json")
+    is_new = True
+    if os.path.exists(_global_history_file_path):
+        current = json.load(open(_global_history_file_path, 'r'))["history"]
+        current = utils.remove_error_from_history(current)
+        utils.fix_history_step_numbers(current)
+        utils.move_xpath_from_interacted_element_to_action(current)
+        current = {"history": current}
+        json.dump(current, open(_global_history_file_path, 'w'))
+        await run_browser_agent(history_file_input=_global_history_file_path)
+        print("Steps Done, and saved for replay")
+        temp = utils.remove_completed_from_history(current["history"])
+        for idx, step in enumerate(temp):
+            is_new = False
+            print(str(idx + 1), step["model_output"]["current_state"]["next_goal"])
     while True:
-        print("Enter next task: ")
+        if is_new:
+            print("Enter new task: ")
+        else:
+            print("Enter additional task: ")
+        is_new = False
         task_text = ""
         while True:
             partial_task_input = input()
@@ -225,6 +262,11 @@ async def exec_tasks():
                 break
         if len(task_text) > 0:
             await run_browser_agent(task=task_text)
+            print("Steps Done, and saved for replay")
+            current = json.load(open(_global_history_file_path, 'r'))["history"]
+            current = utils.remove_completed_from_history(current)
+            for idx, step in enumerate(current):
+                print(str(idx + 1), step["model_output"]["current_state"]["next_goal"])
 
 
 asyncio.run(exec_tasks())

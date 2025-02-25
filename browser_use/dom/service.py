@@ -95,8 +95,9 @@ class DomService:
 
             node_map[id] = node
 
+            node.dom_node_map = js_node_map
+
             if isinstance(node, DOMElementNode) and node.highlight_index is not None:
-                node.dom_node_map = js_node_map
                 selector_map[node.highlight_index] = node
 
             # NOTE: We know that we are building the tree bottom up
@@ -154,6 +155,7 @@ class DomService:
             tag_name=node_data['tagName'],
             xpath=node_data['xpath'],
             attributes=node_data.get('attributes', {}),
+            ignored_attributes=node_data.get('ignored_attributes', []),
             children=[],
             is_visible=node_data.get('isVisible', False),
             is_interactive=node_data.get('isInteractive', False),

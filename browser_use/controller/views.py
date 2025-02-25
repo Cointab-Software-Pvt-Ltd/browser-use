@@ -22,6 +22,7 @@ class InputTextAction(BaseModel):
     index: int
     text: str
     xpath: Optional[str] = None
+    has_human_keystroke: Optional[bool] = False
 
 
 class DoneAction(BaseModel):

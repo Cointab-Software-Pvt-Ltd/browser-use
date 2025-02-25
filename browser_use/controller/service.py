@@ -127,16 +127,22 @@ class Controller(Generic[Context]):
         @self.registry.action('Click element', param_model=ClickElementAction)
         async def click_element(params: ClickElementAction, browser: BrowserContext):
             session = await browser.get_session()
+            if params.xpath is None:
+                if params.index not in await browser.get_selector_map():
+                    raise Exception(
+                        f'Element with index {params.index} does not exist - retry or use alternative actions')
 
-            if params.index not in await browser.get_selector_map():
-                raise Exception(f'Element with index {params.index} does not exist - retry or use alternative actions')
-
-            element_node = await browser.get_dom_element_by_index(params.index)
+                element_node = await browser.get_dom_element_by_index(params.index)
+            else:
+                element_node = await browser.get_dom_element_by_xpath(params.xpath)
             initial_pages = len(session.context.pages)
 
             # if element has file uploader then dont click
             if await browser.is_file_uploader(element_node):
-                msg = f'Index {params.index} - has an element which opens file upload dialog. To upload files please use a specific function to upload files '
+                if params.xpath is None:
+                    msg = f'Index {params.index} - has an element which opens file upload dialog. To upload files please use a specific function to upload files '
+                else:
+                    msg = f'XPath {params.xpath} - has an element which opens file upload dialog. To upload files please use a specific function to upload files '
                 logger.info(msg)
                 return ActionResult(extracted_content=msg, include_in_memory=True)
 
@@ -147,10 +153,14 @@ class Controller(Generic[Context]):
                 if download_path:
                     msg = f'💾  Downloaded file to {download_path}'
                 else:
-                    msg = f'🖱️  Clicked button with index {params.index}: {element_node.get_all_text_till_next_clickable_element(max_depth=2)}'
+                    if params.xpath is None:
+                        msg = f'🖱️  Clicked button with index {params.index}: {element_node.get_all_text_till_next_clickable_element(max_depth=2)}'
+                    else:
+                        msg = f'🖱️  Clicked button with xpath {params.xpath}: {element_node.get_all_text_till_next_clickable_element(max_depth=2)}'
 
                 logger.info(msg)
-                logger.debug(f'Element xpath: {element_node.xpath}')
+                if params.xpath is None:
+                    logger.debug(f'Element xpath: {element_node.xpath}')
                 if len(session.context.pages) > initial_pages:
                     new_tab_msg = 'New tab opened - switching to it'
                     msg += f' - {new_tab_msg}'
@@ -158,7 +168,10 @@ class Controller(Generic[Context]):
                     await browser.switch_to_tab(-1)
                 return ActionResult(extracted_content=msg, include_in_memory=True)
             except Exception as e:
-                logger.warning(f'Element not clickable with index {params.index} - most likely the page changed')
+                if params.xpath is None:
+                    logger.warning(f'Element not clickable with index {params.index} - most likely the page changed')
+                else:
+                    logger.warning(f'Element not clickable with xpath {params.xpath} - most likely the page changed')
                 return ActionResult(error=str(e))
 
         @self.registry.action(
@@ -166,17 +179,27 @@ class Controller(Generic[Context]):
             param_model=InputTextAction,
         )
         async def input_text(params: InputTextAction, browser: BrowserContext, has_sensitive_data: bool = False):
-            if params.index not in await browser.get_selector_map():
-                raise Exception(f'Element index {params.index} does not exist - retry or use alternative actions')
+            if params.xpath is None:
+                if params.index not in await browser.get_selector_map():
+                    raise Exception(f'Element index {params.index} does not exist - retry or use alternative actions')
 
-            element_node = await browser.get_dom_element_by_index(params.index)
-            await browser._input_text_element_node(element_node, params.text)
-            if not has_sensitive_data:
-                msg = f'⌨️  Input {params.text} into index {params.index}'
+                element_node = await browser.get_dom_element_by_index(params.index)
             else:
-                msg = f'⌨️  Input sensitive data into index {params.index}'
+                element_node = await browser.get_dom_element_by_xpath(params.xpath)
+            await browser._input_text_element_node(element_node, params.text)
+            if params.xpath is None:
+                if not has_sensitive_data:
+                    msg = f'⌨️  Input {params.text} into index {params.index}'
+                else:
+                    msg = f'⌨️  Input sensitive data into index {params.index}'
+            else:
+                if not has_sensitive_data:
+                    msg = f'⌨️  Input {params.text} into xpath {params.xpath}'
+                else:
+                    msg = f'⌨️  Input sensitive data into xpath {params.xpath}'
             logger.info(msg)
-            logger.debug(f'Element xpath: {element_node.xpath}')
+            if params.xpath is None:
+                logger.debug(f'Element xpath: {element_node.xpath}')
             return ActionResult(extracted_content=msg, include_in_memory=True)
 
         # Tab Management Actions

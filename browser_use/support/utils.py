@@ -181,3 +181,59 @@ def get_llm_model(provider: str, **kwargs):
         )
     else:
         raise ValueError(f"Unsupported provider: {provider}")
+
+
+def filter_history_result_true(history_item):
+    return history_item["result"][-1]["is_done"] is not True
+
+
+def remove_completed_from_history(history):
+    return list(filter(filter_history_result_true, history))
+
+
+def filter_history_result_error_free(history_item):
+    return history_item["result"][-1].get("error") is None
+
+
+def remove_error_from_history(history):
+    return list(filter(filter_history_result_error_free, history))
+
+
+def fix_history_step_numbers(history):
+    for idx, history_item in enumerate(history):
+        history_item["metadata"]["step_number"] = idx + 1
+
+
+def move_xpath_from_interacted_element_to_action(history):
+    for history_item in history:
+        for idx, action in enumerate(history_item["model_output"]["action"]):
+            interacted_element = history_item["state"]["interacted_element"][idx]
+            action_name = None
+            for action_name in action:
+                pass
+            if action[action_name].get("index") is not None and action[action_name].get("xpath") is None:
+                action[action_name]["xpath"] = interacted_element["xpath"]
+
+
+def add_delay_after_browser_actions_if_not_present(history):
+    is_browser_action = False
+    for history_item in history:
+        new_action = []
+        new_interacted_element = []
+        for idx, action in enumerate(history_item["model_output"]["action"]):
+            interacted_element = history_item["state"]["interacted_element"][idx]
+            action_name = None
+            for action_name in action:
+                pass
+            if is_browser_action:
+                if action_name == "wait":
+                    pass
+                else:
+                    new_action.append({"wait": {"seconds": 2}})
+                    new_interacted_element.append(None)
+            if action[action_name].get("index") is not None:
+                is_browser_action = True
+            else:
+                is_browser_action = False
+            new_action.append(action)
+            new_interacted_element.append(interacted_element)

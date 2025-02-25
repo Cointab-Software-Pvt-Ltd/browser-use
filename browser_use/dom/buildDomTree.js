@@ -876,20 +876,20 @@
     const nodeData = {
       tagName: node.tagName.toLowerCase(),
       attributes: {},
-      ignored_attributes: [],
+            ignored_attributes: [],
       xpath: getXPathTree(node, true),
       children: [],
     };
 
-        // Get attributes for interactive elements or potential text containers
-        const attributeNames = node.getAttributeNames?.() || [];
-        for (const name of attributeNames) {
-            if (isInteractiveCandidate(node) || node.tagName.toLowerCase() === 'iframe' || node.tagName.toLowerCase() === 'body' || ['id', 'name', 'class'].indexOf(name) >= 0) {
-                nodeData.attributes[name] = node.getAttribute(name);
-            } else {
-                nodeData.ignored_attributes.push(name);
-            }
+    // Get attributes for interactive elements or potential text containers
+    const attributeNames = node.getAttributeNames?.() || [];
+    for (const name of attributeNames) {
+        if (isInteractiveCandidate(node) || ['iframe', 'body', 'html', 'head'].indexOf(node.tagName.toLowerCase()) >= 0 || ['id', 'name', 'class', 'href', 'placeholder', 'type', 'type', 'src'].indexOf(name) >= 0) {
+            nodeData.attributes[name] = node.getAttribute(name);
+        } else {
+            nodeData.ignored_attributes.push(name);
         }
+    }
 
     // if (isInteractiveCandidate(node)) {
 

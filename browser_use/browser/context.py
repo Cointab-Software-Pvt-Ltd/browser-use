@@ -25,6 +25,7 @@ from playwright.async_api import (
     Page,
 )
 
+import browser_use.support.utils as utils
 from browser_use.browser.views import (
     BrowserError,
     BrowserState,
@@ -1296,3 +1297,7 @@ class BrowserContext:
         except Exception as e:
             logger.debug(f'Failed to get CDP targets: {e}')
             return []
+
+    def get_downloaded_file(self) -> str:
+        """Get all CDP targets directly using CDP protocol"""
+        return utils.get_latest_file(self.config.save_downloads_path)

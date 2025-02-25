@@ -77,6 +77,16 @@ class Controller(Generic[Context]):
             logger.info(msg)
             return ActionResult(extracted_content=msg, include_in_memory=True)
 
+        # Basic Navigation Actions
+        @self.registry.action(
+            'Returns the last file which was downloaded in browser',
+        )
+        async def get_downloaded_file_path(browser: BrowserContext):
+            file = browser.get_downloaded_file()
+            msg = f'🔍  Found file as last downloaded file "{file}" in browser'
+            logger.info(msg)
+            return ActionResult(extracted_content=file, include_in_memory=True)
+
         @self.registry.action('Navigate to URL in the current tab', param_model=GoToUrlAction)
         async def go_to_url(params: GoToUrlAction, browser: BrowserContext):
             page = await browser.get_current_page()

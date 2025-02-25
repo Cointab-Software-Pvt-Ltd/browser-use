@@ -47,6 +47,7 @@ async def run_org_agent(
         save_recording_path,
         save_agent_history_path,
         save_trace_path,
+        save_downloads_path,
         task,
         history_file_input,
         max_steps,
@@ -88,6 +89,7 @@ async def run_org_agent(
                 config=BrowserContextConfig(
                     trace_path=save_trace_path if save_trace_path else None,
                     save_recording_path=save_recording_path if save_recording_path else None,
+                    save_downloads_path=save_downloads_path,
                     no_viewport=False,
                     browser_window_size=BrowserContextWindowSize(
                         width=window_w, height=window_h
@@ -162,6 +164,7 @@ async def run_browser_agent(
         save_recording_path="./tmp/record_videos",
         save_agent_history_path="./tmp/agent_history",
         save_trace_path="./tmp/traces",
+        save_downloads_path="./tmp/downloads",
         enable_recording=True,
         max_steps=1000,
         use_vision=True,
@@ -200,6 +203,7 @@ async def run_browser_agent(
             save_recording_path=save_recording_path,
             save_agent_history_path=save_agent_history_path,
             save_trace_path=save_trace_path,
+            save_downloads_path=save_downloads_path,
             task=task,
             history_file_input=history_file_input,
             max_steps=max_steps,
@@ -229,7 +233,7 @@ async def run_browser_agent(
 
 async def exec_tasks():
     is_new = True
-    global _global_history_file_path
+    global _global_browser_context, _global_history_file_path
     if os.path.exists(_global_history_file_path):
         current = json.load(open(_global_history_file_path, 'r'))["history"]
         utils.fix_history_save_to_file(current, _global_history_file_path)
@@ -254,12 +258,15 @@ async def exec_tasks():
             else:
                 break
         if len(task_text) > 0:
-            await run_browser_agent(task=task_text)
-            print("Steps Done, and saved for replay")
-            current = json.load(open(_global_history_file_path, 'r'))["history"]
-            current = utils.remove_completed_from_history(current)
-            for idx, step in enumerate(current):
-                print(str(idx + 1), step["model_output"]["current_state"]["next_goal"])
+            if task_text.lower() == "show":
+                await _global_browser_context.get_state()
+            else:
+                await run_browser_agent(task=task_text)
+                print("Steps Done, and saved for replay")
+                current = json.load(open(_global_history_file_path, 'r'))["history"]
+                current = utils.remove_completed_from_history(current)
+                for idx, step in enumerate(current):
+                    print(str(idx + 1), step["model_output"]["current_state"]["next_goal"])
 
 
 asyncio.run(exec_tasks())

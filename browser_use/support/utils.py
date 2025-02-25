@@ -46,6 +46,24 @@ def get_latest_files(directory: str, file_types: list = ['.webm', '.zip', '.json
     return latest_files
 
 
+def get_latest_file(directory: str) -> str:
+    """Get the latest recording and trace files"""
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+        return ""
+    latest_file = ""
+    try:
+        matches = list(Path(directory).rglob(f"*"))
+        if matches:
+            latest = max(matches, key=lambda p: p.stat().st_mtime)
+            if time.time() - latest.stat().st_mtime > 1.0:
+                latest_file = str(latest)
+    except Exception as e:
+        print(f"Error getting latest file: {e}")
+
+    return latest_file
+
+
 def get_llm_model(provider: str, **kwargs):
     """
     获取LLM 模型

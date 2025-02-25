@@ -12,6 +12,17 @@ class GoToUrlAction(BaseModel):
     url: str
 
 
+class RequestAction(BaseModel):
+    action_name: str
+    action_description: str
+
+
+class IfConditionAction(BaseModel):
+    condition_lhs: str
+    operator: str
+    condition_rhs: str
+
+
 class ClickElementAction(BaseModel):
     index: int
     xpath: Optional[str] = None

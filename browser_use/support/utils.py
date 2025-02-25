@@ -216,39 +216,9 @@ def move_xpath_from_interacted_element_to_action(history):
                 action[action_name]["xpath"] = interacted_element["xpath"]
 
 
-def add_delay_after_browser_actions_if_not_present(history):
-    is_browser_action = False
-    for history_item in history:
-        new_action = []
-        new_interacted_element = []
-        for idx, action in enumerate(history_item["model_output"]["action"]):
-            interacted_element = history_item["state"]["interacted_element"][idx]
-            action_name = None
-            for action_name in action:
-                pass
-            if is_browser_action:
-                if action_name == "wait":
-                    pass
-                else:
-                    new_action.append({"wait": {"seconds": 2}})
-                    new_interacted_element.append(None)
-            if action[action_name].get("index") is not None:
-                is_browser_action = True
-            else:
-                is_browser_action = False
-            new_action.append(action)
-            new_interacted_element.append(interacted_element)
-        history_item["model_output"]["action"] = new_action
-        history_item["state"]["interacted_element"] = new_interacted_element
-    if is_browser_action:
-        history[-1]["model_output"]["action"].append({"wait": {"seconds": 2}})
-        history[-1]["state"]["interacted_element"].append(None)
-
-
 def fix_history_save_to_file(history, file_path):
     remove_error_from_history(history)
     fix_history_step_numbers(history)
     move_xpath_from_interacted_element_to_action(history)
-    add_delay_after_browser_actions_if_not_present(history)
     final = {"history": history}
     json.dump(final, open(file_path, 'w'))

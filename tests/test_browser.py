@@ -4,7 +4,7 @@ import requests
 import subprocess
 from browser_use.browser.browser import Browser, BrowserConfig
 from browser_use.browser.context import BrowserContext, BrowserContextConfig
-from playwright._impl._api_structures import ProxySettings
+from rebrowser_playwright._impl._api_structures import ProxySettings
 
 @pytest.mark.asyncio
 async def test_standard_browser_launch(monkeypatch):

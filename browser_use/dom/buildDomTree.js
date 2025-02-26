@@ -876,22 +876,15 @@
     const nodeData = {
       tagName: node.tagName.toLowerCase(),
       attributes: {},
-            ignored_attributes: [],
       xpath: getXPathTree(node, true),
       children: [],
     };
 
-    // Get attributes for interactive elements or potential text containers
+    // Get attributes
     const attributeNames = node.getAttributeNames?.() || [];
     for (const name of attributeNames) {
-        if (isInteractiveCandidate(node) || ['iframe', 'body', 'html', 'head'].indexOf(node.tagName.toLowerCase()) >= 0 || ['id', 'name', 'class', 'href', 'placeholder', 'type', 'type', 'src'].indexOf(name) >= 0) {
-            nodeData.attributes[name] = node.getAttribute(name);
-        } else {
-            nodeData.ignored_attributes.push(name);
-        }
+      nodeData.attributes[name] = node.getAttribute(name);
     }
-
-    // if (isInteractiveCandidate(node)) {
 
     // Check interactivity
     if (node.nodeType === Node.ELEMENT_NODE) {
@@ -961,10 +954,10 @@
       // Handle regular elements
       else {
         for (const child of node.childNodes) {
-          const domElement = buildDomTree(child, parentIframe);
-          if (domElement) nodeData.children.push(domElement);
-        }
+        const domElement = buildDomTree(child, parentIframe);
+        if (domElement) nodeData.children.push(domElement);
       }
+    }
     }
 
     // Skip empty anchor tags

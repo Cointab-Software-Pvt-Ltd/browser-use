@@ -48,7 +48,6 @@ class DOMHistoryElement:
     entire_parent_branch_path: list[str]
     attributes: dict[str, str]
     dom_node_map: dict = None
-    ignored_attributes: list[str] = None
     shadow_root: bool = False
     css_selector: Optional[str] = None
     page_coordinates: Optional[CoordinateSet] = None
@@ -66,7 +65,6 @@ class DOMHistoryElement:
             'highlight_index': self.highlight_index,
             'entire_parent_branch_path': self.entire_parent_branch_path,
             'attributes': self.attributes,
-            'ignored_attributes': self.ignored_attributes,
             'shadow_root': self.shadow_root,
             'dom_node_map': self.dom_node_map,
             'css_selector': self.css_selector,

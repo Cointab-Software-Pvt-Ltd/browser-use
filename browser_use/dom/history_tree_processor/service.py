@@ -25,7 +25,6 @@ class HistoryTreeProcessor:
             parent_branch_path,
             dom_element.attributes,
             dom_element.dom_node_map,
-            dom_element.ignored_attributes,
             dom_element.shadow_root,
             css_selector=css_selector,
             page_coordinates=dom_element.page_coordinates,

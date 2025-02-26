@@ -29,6 +29,15 @@ class ClickElementAction(BaseModel):
     right_click: Optional[bool] = False
 
 
+class PhysicalClickElementAction(BaseModel):
+    x: int
+    y: int
+    right_click: Optional[bool] = False
+    long_press: Optional[bool] = False
+    click_count: Optional[int] = 1
+    press_duration: Optional[int] = 1
+
+
 class InputTextAction(BaseModel):
     index: int
     text: str

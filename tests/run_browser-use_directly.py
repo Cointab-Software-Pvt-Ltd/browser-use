@@ -61,8 +61,8 @@ async def run_org_agent(
     model_thoughts = None
     history_file = None
     trace_file = None
+    global _global_browser, _global_browser_context, _global_agent, _global_secret_file_path
     try:
-        global _global_browser, _global_browser_context, _global_agent, _global_secret_file_path
         extra_chromium_args = [f"--window-size={window_w},{window_h}"]
         if use_own_browser:
             chrome_path = os.getenv("CHROME_PATH", None)
@@ -259,7 +259,8 @@ async def exec_tasks():
                 break
         if len(task_text) > 0:
             if task_text.lower() == "show":
-                await _global_browser_context.get_state()
+                if _global_browser_context is not None:
+                    await _global_browser_context.get_state()
             else:
                 await run_browser_agent(task=task_text)
                 print("Steps Done, and saved for replay")

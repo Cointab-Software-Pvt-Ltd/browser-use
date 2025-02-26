@@ -6,7 +6,7 @@ from importlib import resources
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from playwright.async_api import Page
+    from rebrowser_playwright.async_api import Page
 
 from browser_use.dom.views import (
     DOMBaseNode,
@@ -155,7 +155,6 @@ class DomService:
             tag_name=node_data['tagName'],
             xpath=node_data['xpath'],
             attributes=node_data.get('attributes', {}),
-            ignored_attributes=node_data.get('ignored_attributes', []),
             children=[],
             is_visible=node_data.get('isVisible', False),
             is_interactive=node_data.get('isInteractive', False),

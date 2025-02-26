@@ -54,7 +54,6 @@ class DOMElementNode(DOMBaseNode):
     xpath: str
     attributes: Dict[str, str]
     children: List[DOMBaseNode]
-    ignored_attributes: Optional[List[str]] = None
     dom_node_map: dict = None
     is_interactive: bool = False
     is_top_element: bool = False

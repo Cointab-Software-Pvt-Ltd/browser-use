@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Dict, Generic, Optional, Type, TypeVar
 
+import pyautogui
 import pyotp
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
@@ -25,6 +26,7 @@ from browser_use.controller.views import (
     SwitchTabAction,
     RequestAction,
     IfConditionAction,
+    PhysicalClickElementAction,
 )
 from browser_use.utils import time_execution_sync
 
@@ -103,6 +105,25 @@ class Controller(Generic[Context]):
             logger.info(params)
             logger.info("Function Requested")
             return ActionResult(extracted_content="Requested")
+
+        @self.registry.action(
+            'Do a physical mouse click by providing x,y coordinates',
+            param_model=PhysicalClickElementAction)
+        async def physical_mouse_click(params: PhysicalClickElementAction):
+            params.x = params.x / 0.8
+            params.y = params.y / 0.8
+            pyautogui.moveTo(params.x, params.y, duration=2, tween=pyautogui.easeOutQuad)
+            if params.long_press:
+                pyautogui.mouseDown(params.x, params.y, button='right' if params.right_click else 'left')
+                await asyncio.sleep(params.press_duration)
+                pyautogui.mouseUp(params.x, params.y, button='right' if params.right_click else 'left')
+            else:
+                if params.right_click:
+                    pyautogui.click(params.x, params.y, clicks=params.click_count, button='right')
+                else:
+                    pyautogui.click(params.x, params.y, clicks=params.click_count)
+            logger.info("Physical Mouse Clicked")
+            return ActionResult(extracted_content="Physical Mouse Clicked")
 
         @self.registry.action(
             'If condition. LHS operator RHS. Returns true/false')

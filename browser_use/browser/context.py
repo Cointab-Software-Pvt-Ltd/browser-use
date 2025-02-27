@@ -8,6 +8,7 @@ import gc
 import json
 import logging
 import os
+import random
 import re
 import time
 import uuid
@@ -125,9 +126,7 @@ class BrowserContextConfig:
     save_downloads_path: str | None = None
     trace_path: str | None = None
     locale: str | None = None
-    user_agent: str = (
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36  (KHTML, like Gecko) Chrome/85.0.4183.102 Safari/537.36'
-    )
+    user_agent: str | None = None
 
     highlight_elements: bool = True
     viewport_expansion: int = 500
@@ -321,7 +320,7 @@ class BrowserContext:
             context = await browser.new_context(
                 viewport=self.config.browser_window_size,
                 no_viewport=False,
-                user_agent=self.config.user_agent,
+                **({"user_agent": self.config.user_agent} if self.config.user_agent is not None else {}),
                 java_script_enabled=True,
                 bypass_csp=self.config.disable_security,
                 ignore_https_errors=self.config.disable_security,
@@ -343,24 +342,7 @@ class BrowserContext:
         # Expose anti-detection scripts
         await context.add_init_script(
             """
-            // Webdriver property
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined
-            });
-
-            // Languages
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['en-US']
-            });
-
-            // Plugins
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3, 4, 5]
-            });
-
-            // Chrome runtime
-            window.chrome = { runtime: {} };
-
+            
             // Permissions
             const originalQuery = window.navigator.permissions.query;
             window.navigator.permissions.query = (parameters) => (
@@ -1067,7 +1049,7 @@ class BrowserContext:
             return None
 
     @time_execution_async('--input_text_element_node')
-    async def _input_text_element_node(self, element_node: DOMElementNode, text: str):
+    async def _input_text_element_node(self, element_node: DOMElementNode, text: str, has_human_keystroke: bool = True):
         """
         Input text into an element with proper error handling and state management.
         Handles different types of input fields and ensures proper element state before input.
@@ -1098,7 +1080,12 @@ class BrowserContext:
             else:
                 await element_handle.click()
                 await element_handle.fill("")
-            await element_handle.type(text, delay=50)
+            if has_human_keystroke:
+                for char in text:
+                    await asyncio.sleep(random.random() * 500 / 1000)
+                    await element_handle.type(char)
+            else:
+                await element_handle.type(text, delay=0)
 
         except Exception as e:
             logger.debug(f'Failed to input text into element: {repr(element_node)}. Error: {str(e)}')

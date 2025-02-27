@@ -217,7 +217,7 @@ class Controller(Generic[Context]):
                 element_node = await browser.get_dom_element_by_index(params.index)
             else:
                 element_node = await browser.get_dom_element_by_xpath(params.xpath)
-            await browser._input_text_element_node(element_node, params.text)
+            await browser._input_text_element_node(element_node, params.text, params.has_human_keystroke)
             if params.xpath is None:
                 if not has_sensitive_data:
                     msg = f'⌨️  Input {params.text} into index {params.index}'

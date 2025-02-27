@@ -72,6 +72,7 @@ async def run_org_agent(
             if chrome_user_data:
                 extra_chromium_args += [f"--user-data-dir={chrome_user_data}"]
         else:
+            # chrome_path = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
             chrome_path = None
 
         if _global_browser is None:

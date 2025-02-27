@@ -5,8 +5,10 @@ Playwright browser on steroids.
 import asyncio
 import gc
 import logging
+import subprocess
 from dataclasses import dataclass, field
 
+import requests
 from rebrowser_playwright._impl._api_structures import ProxySettings
 from rebrowser_playwright.async_api import Browser as PlaywrightBrowser
 from rebrowser_playwright.async_api import (
@@ -50,6 +52,7 @@ class BrowserConfig:
     disable_security: bool = True
     extra_chromium_args: list[str] = field(default_factory=list)
     chrome_instance_path: str | None = None
+    is_chrome_guest: bool | None = True
     wss_url: str | None = None
     cdp_url: str | None = None
 
@@ -128,10 +131,6 @@ class Browser:
         """Sets up and returns a Playwright Browser instance with anti-detection measures."""
         if not self.config.chrome_instance_path:
             raise ValueError('Chrome instance path is required')
-        import subprocess
-
-        import requests
-
         try:
             # Check if browser is already running
             response = requests.get('http://localhost:9222/json/version', timeout=2)
@@ -146,6 +145,13 @@ class Browser:
             logger.debug('No existing Chrome instance found, starting a new one')
 
         # Start a new Chrome instance
+        if self.config.is_chrome_guest:
+            is_chrome_guest = True
+            for entry in self.config.extra_chromium_args:
+                if entry.startswith("--user-data-dir"):
+                    is_chrome_guest = False
+            if is_chrome_guest:
+                self.config.extra_chromium_args.append("--guest")
         subprocess.Popen(
             [
                 self.config.chrome_instance_path,

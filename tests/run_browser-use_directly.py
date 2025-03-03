@@ -3,13 +3,8 @@ import json
 import os
 import re
 
-import pyautogui
-
 from browser_use.agent.service import Agent
 from browser_use.browser.browser import Browser, BrowserConfig, BrowserContextConfig
-from browser_use.browser.context import (
-    BrowserContextWindowSize,
-)
 from browser_use.support import utils
 
 _global_browser = None
@@ -18,9 +13,6 @@ _global_agent = None
 
 _global_history_file_path = "history.json"
 _global_secret_file_path = "secret.json"
-
-window_width = pyautogui.size()[0] * 0.8
-window_height = pyautogui.size()[1] * 0.8
 
 
 def resolve_sensitive_env_variables(text):
@@ -42,8 +34,6 @@ async def run_org_agent(
         keep_browser_open,
         headless,
         disable_security,
-        window_w,
-        window_h,
         save_recording_path,
         save_agent_history_path,
         save_trace_path,
@@ -63,7 +53,8 @@ async def run_org_agent(
     trace_file = None
     global _global_browser, _global_browser_context, _global_agent, _global_secret_file_path
     try:
-        extra_chromium_args = [f"--window-size={window_w},{window_h}"]
+        extra_chromium_args = []
+        extra_chromium_args.append("--start-maximized")
         if use_own_browser:
             chrome_path = os.getenv("CHROME_PATH", None)
             if chrome_path == "":
@@ -72,8 +63,7 @@ async def run_org_agent(
             if chrome_user_data:
                 extra_chromium_args += [f"--user-data-dir={chrome_user_data}"]
         else:
-            # chrome_path = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-            chrome_path = None
+            chrome_path = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 
         if _global_browser is None:
             _global_browser = Browser(
@@ -91,10 +81,7 @@ async def run_org_agent(
                     trace_path=save_trace_path if save_trace_path else None,
                     save_recording_path=save_recording_path if save_recording_path else None,
                     save_downloads_path=save_downloads_path,
-                    no_viewport=False,
-                    browser_window_size=BrowserContextWindowSize(
-                        width=window_w, height=window_h
-                    ),
+                    no_viewport=True,
                 )
             )
         if task is None:
@@ -160,9 +147,7 @@ async def run_browser_agent(
         keep_browser_open=True,
         headless=False,
         disable_security=False,
-        window_w=window_width,
-        window_h=window_height,
-        save_recording_path="./tmp/record_videos",
+        save_recording_path=None,
         save_agent_history_path="./tmp/agent_history",
         save_trace_path="./tmp/traces",
         save_downloads_path="./tmp/downloads",
@@ -199,8 +184,6 @@ async def run_browser_agent(
             keep_browser_open=keep_browser_open,
             headless=headless,
             disable_security=disable_security,
-            window_w=window_w,
-            window_h=window_h,
             save_recording_path=save_recording_path,
             save_agent_history_path=save_agent_history_path,
             save_trace_path=save_trace_path,
@@ -233,9 +216,23 @@ async def run_browser_agent(
 
 
 async def exec_tasks():
-    is_new = True
     global _global_browser_context, _global_history_file_path
+    print("Enter Flow Code: ")
+    run_history = input()
+    _global_history_file_path = "history" + ("_" + run_history if len(run_history) > 0 else "") + ".json"
+    _global_secret_file_path = "secret" + ("_" + run_history if len(run_history) > 0 else "") + ".json"
+    if len(run_history) == 0:
+        print("New Flow to be created as no history code entered")
+        while len(run_history) == 0:
+            print("New Flow Code: ")
+            run_history = input()
+            _global_history_file_path = "history_" + run_history + ".json"
+            _global_secret_file_path = "secret_" + run_history + ".json"
+    elif os.path.exists(_global_history_file_path) is False:
+        print("New Flow to be created as history code entered is not present")
+    is_new = True
     if os.path.exists(_global_history_file_path):
+        print("Run history: " + _global_history_file_path)
         current = json.load(open(_global_history_file_path, 'r'))["history"]
         utils.fix_history_save_to_file(current, _global_history_file_path)
         await run_browser_agent(history_file_input=_global_history_file_path)

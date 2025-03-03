@@ -12,8 +12,8 @@ import random
 import re
 import time
 import uuid
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, TypedDict
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional
 
 from rebrowser_playwright._impl._errors import TimeoutError
 from rebrowser_playwright.async_api import Browser as PlaywrightBrowser
@@ -27,6 +27,7 @@ from rebrowser_playwright.async_api import (
 )
 
 import browser_use.support.utils as utils
+import browser_use.utils as utils
 from browser_use.browser.views import (
     BrowserError,
     BrowserState,
@@ -35,17 +36,11 @@ from browser_use.browser.views import (
 )
 from browser_use.dom.service import DomService
 from browser_use.dom.views import DOMElementNode, SelectorMap
-from browser_use.utils import time_execution_async, time_execution_sync
 
 if TYPE_CHECKING:
     from browser_use.browser.browser import Browser
 
 logger = logging.getLogger(__name__)
-
-
-class BrowserContextWindowSize(TypedDict):
-    width: int
-    height: int
 
 
 @dataclass
@@ -72,12 +67,6 @@ class BrowserContextConfig:
 
         wait_between_actions: 1.0
             Time to wait between multiple per step actions
-
-        browser_window_size: {
-                'width': 1280,
-                'height': 1100,
-            }
-            Default browser window size
 
         no_viewport: False
             Disable viewport
@@ -119,7 +108,6 @@ class BrowserContextConfig:
 
     disable_security: bool = True
 
-    browser_window_size: BrowserContextWindowSize = field(default_factory=lambda: {'width': 1280, 'height': 1100})
     no_viewport: Optional[bool] = None
 
     save_recording_path: str | None = None
@@ -178,7 +166,7 @@ class BrowserContext:
         """Async context manager exit"""
         await self.close()
 
-    @time_execution_async('--close')
+    @utils.time_execution_async('--close')
     async def close(self):
         """Close the browser instance"""
         logger.debug('Closing browser context')
@@ -231,7 +219,7 @@ class BrowserContext:
             except Exception as e:
                 logger.warning(f'Failed to force close browser context: {e}')
 
-    @time_execution_async('--initialize_session')
+    @utils.time_execution_async('--initialize_session')
     async def _initialize_session(self):
         """Initialize the browser session"""
         logger.debug('Initializing browser context')
@@ -318,14 +306,13 @@ class BrowserContext:
         else:
             # Original code for creating new context
             context = await browser.new_context(
-                viewport=self.config.browser_window_size,
-                no_viewport=False,
+                no_viewport=True,
                 **({"user_agent": self.config.user_agent} if self.config.user_agent is not None else {}),
                 java_script_enabled=True,
                 bypass_csp=self.config.disable_security,
                 ignore_https_errors=self.config.disable_security,
                 record_video_dir=self.config.save_recording_path,
-                record_video_size=self.config.browser_window_size,
+                record_video_size=utils.get_screen_resolution(),
                 locale=self.config.locale,
             )
 
@@ -343,7 +330,10 @@ class BrowserContext:
         await context.add_init_script(
             """
             
-            // Permissions
+            // rebrowser is flaky for some reason so we manually delete it
+			delete window.__pwInitScripts;
+			
+			// Permissions
             const originalQuery = window.navigator.permissions.query;
             window.navigator.permissions.query = (parameters) => (
                 parameters.name === 'notifications' ?
@@ -727,7 +717,7 @@ class BrowserContext:
         structure = await page.evaluate(debug_script)
         return structure
 
-    @time_execution_sync('--get_state')  # This decorator might need to be updated to handle async
+    @utils.time_execution_sync('--get_state')  # This decorator might need to be updated to handle async
     async def get_state(self) -> BrowserState:
         """Get the current state of the browser"""
         await self._wait_for_page_and_frames_load()
@@ -792,7 +782,7 @@ class BrowserContext:
             raise
 
     # region - Browser Actions
-    @time_execution_async('--take_screenshot')
+    @utils.time_execution_async('--take_screenshot')
     async def take_screenshot(self, full_page: bool = False) -> str:
         """
         Returns a base64 encoded screenshot of the current page.
@@ -813,7 +803,7 @@ class BrowserContext:
 
         return screenshot_b64
 
-    @time_execution_async('--remove_highlights')
+    @utils.time_execution_async('--remove_highlights')
     async def remove_highlights(self):
         """
         Removes all highlight overlays and labels created by the highlightElement function.
@@ -898,7 +888,7 @@ class BrowserContext:
         return base_selector
 
     @classmethod
-    @time_execution_sync('--enhanced_css_selector_for_element')
+    @utils.time_execution_sync('--enhanced_css_selector_for_element')
     def _enhanced_css_selector_for_element(cls, element: DOMElementNode,
                                            include_dynamic_attributes: bool = True) -> str:
         """
@@ -1005,7 +995,7 @@ class BrowserContext:
             tag_name = element.tag_name or '*'
             return f"{tag_name}[highlight_index='{element.highlight_index}']"
 
-    @time_execution_async('--get_locate_element')
+    @utils.time_execution_async('--get_locate_element')
     async def get_locate_element(self, element: DOMElementNode) -> Optional[ElementHandle]:
         current_frame = await self.get_current_page()
 
@@ -1048,7 +1038,7 @@ class BrowserContext:
             logger.error(f'Failed to locate element: {str(e)}')
             return None
 
-    @time_execution_async('--input_text_element_node')
+    @utils.time_execution_async('--input_text_element_node')
     async def _input_text_element_node(self, element_node: DOMElementNode, text: str, has_human_keystroke: bool = True):
         """
         Input text into an element with proper error handling and state management.
@@ -1091,7 +1081,7 @@ class BrowserContext:
             logger.debug(f'Failed to input text into element: {repr(element_node)}. Error: {str(e)}')
             raise BrowserError(f'Failed to input text into index {element_node.highlight_index}')
 
-    @time_execution_async('--click_element_node')
+    @utils.time_execution_async('--click_element_node')
     async def _click_element_node(self, element_node: DOMElementNode, right_click: bool) -> Optional[str]:
         """
         Optimized method to click an element using xpath.
@@ -1159,7 +1149,7 @@ class BrowserContext:
         except Exception as e:
             raise Exception(f'Failed to click element: {repr(element_node)}. Error: {str(e)}')
 
-    @time_execution_async('--get_tabs_info')
+    @utils.time_execution_async('--get_tabs_info')
     async def get_tabs_info(self) -> list[TabInfo]:
         """Get information about all tabs"""
         session = await self.get_session()
@@ -1171,7 +1161,7 @@ class BrowserContext:
 
         return tabs_info
 
-    @time_execution_async('--switch_to_tab')
+    @utils.time_execution_async('--switch_to_tab')
     async def switch_to_tab(self, page_id: int) -> None:
         """Switch to a specific tab by its page_id"""
         session = await self.get_session()
@@ -1197,7 +1187,7 @@ class BrowserContext:
         await page.bring_to_front()
         await page.wait_for_load_state()
 
-    @time_execution_async('--create_new_tab')
+    @utils.time_execution_async('--create_new_tab')
     async def create_new_tab(self, url: str | None = None) -> None:
         """Create a new tab and optionally navigate to a URL"""
         if url and not self._is_url_allowed(url):

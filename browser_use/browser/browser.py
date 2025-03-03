@@ -16,8 +16,8 @@ from rebrowser_playwright.async_api import (
     async_playwright,
 )
 
+import browser_use.utils as utils
 from browser_use.browser.context import BrowserContext, BrowserContextConfig
-from browser_use.utils import time_execution_async
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +82,8 @@ class Browser:
         self.playwright_browser: PlaywrightBrowser | None = None
 
         self.disable_security_args = []
+        self.screen_size = utils.get_screen_resolution()
+        self.offset_x, self.offset_y = utils.get_window_adjustments()
         if self.config.disable_security:
             self.disable_security_args = [
                 '--disable-web-security',
@@ -100,7 +102,7 @@ class Browser:
 
         return self.playwright_browser
 
-    @time_execution_async('--init (browser)')
+    @utils.time_execution_async('--init (browser)')
     async def _init(self):
         """Initialize the browser session"""
         playwright = await async_playwright().start()
@@ -156,6 +158,8 @@ class Browser:
             [
                 self.config.chrome_instance_path,
                 '--remote-debugging-port=9222',
+                f'--window-position={self.offset_x},{self.offset_y}',
+                f'--window-size={self.screen_size["width"]},{self.screen_size["height"]}',
             ]
             + self.config.extra_chromium_args,
             stdout=subprocess.DEVNULL,
@@ -176,7 +180,7 @@ class Browser:
         try:
             browser = await playwright.chromium.connect_over_cdp(
                 endpoint_url='http://localhost:9222',
-                timeout=20000,  # 20 second timeout for connection
+                timeout=20000,
             )
             return browser
         except Exception as e:
@@ -189,20 +193,24 @@ class Browser:
         """Sets up and returns a Playwright Browser instance with anti-detection measures."""
         browser = await playwright.chromium.launch(
             headless=self.config.headless,
+            channel='chrome',
             args=[
-                     '--no-sandbox',
+                     # '--no-sandbox',
                      '--disable-blink-features=AutomationControlled',
-                     '--disable-infobars',
-                     '--disable-background-timer-throttling',
-                     '--disable-popup-blocking',
-                     '--disable-backgrounding-occluded-windows',
-                     '--disable-renderer-backgrounding',
-                     '--disable-window-activation',
-                     '--disable-focus-on-load',
-                     '--no-first-run',
-                     '--no-default-browser-check',
-                     '--no-startup-window',
-                     '--window-position=0,0',
+                     # '--disable-infobars',
+                     # '--disable-background-timer-throttling',
+                     # '--disable-popup-blocking',
+                     # '--disable-backgrounding-occluded-windows',
+                     # '--disable-renderer-backgrounding',
+                     # '--disable-window-activation',
+                     # '--disable-focus-on-load',
+                     # '--no-first-run',
+                     # '--no-default-browser-check',
+                     # '--no-startup-window',
+                     # '--window-position=0,0',
+                     f'--window-position={self.offset_x},{self.offset_y}',
+                     f'--window-size={self.screen_size["width"]},{self.screen_size["height"]}',
+                     '--force-device-scale-factor=1',
                  ]
                  + self.disable_security_args
                  + self.config.extra_chromium_args,

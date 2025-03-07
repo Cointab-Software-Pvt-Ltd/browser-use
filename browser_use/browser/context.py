@@ -98,6 +98,10 @@ class BrowserContextConfig:
 
         include_dynamic_attributes: bool = True
             Include dynamic attributes in the CSS selector. If you want to reuse the css_selectors, it might be better to set this to False.
+
+        http_credentials: None
+            Dictionary with HTTP authentication credentials, e.g.
+            {"username": "bill", "password": "pa55w0rd"}
     """
 
     cookies_file: str | None = None
@@ -120,14 +124,58 @@ class BrowserContextConfig:
     viewport_expansion: int = 500
     allowed_domains: list[str] | None = None
     include_dynamic_attributes: bool = True
+    http_credentials: dict[str, str] | None = None
 
     _force_keep_context_alive: bool = False
 
 
-@dataclass
 class BrowserSession:
-    context: PlaywrightBrowserContext
-    cached_state: BrowserState | None
+    def __init__(
+            self,
+            context: PlaywrightBrowserContext,
+            cached_state: BrowserState | None = None
+    ):
+        init_script = """
+    		(() => {
+    			if (!window.getEventListeners) {
+    				window.getEventListeners = function (node) {
+    					return node.__listeners || {};
+    				};
+    				// Save the original addEventListener
+    				const originalAddEventListener = Element.prototype.addEventListener;
+    				const eventProxy = {
+    					addEventListener: function (type, listener, options = {}) {
+    						// Initialize __listeners if not exists
+    						const defaultOptions = { once: false, passive: false, capture: false };
+    						if(typeof options === 'boolean') {
+    							options = { capture: options };
+    						}
+    						options = { ...defaultOptions, ...options };
+    						if (!this.__listeners) {
+    							this.__listeners = {};
+    						}
+    						// Initialize array for this event type if not exists
+    						if (!this.__listeners[type]) {
+    							this.__listeners[type] = [];
+    						}
+
+    						// Add the listener to __listeners
+    						this.__listeners[type].push({
+    							listener: listener,
+    							type: type,
+    							...options
+    						});
+    						// Call original addEventListener using the saved reference
+    						return originalAddEventListener.call(this, type, listener, options);
+    					}
+    				};
+    				Element.prototype.addEventListener = eventProxy.addEventListener;
+    			}
+    		})()
+    		"""
+        self.context = context
+        self.cached_state = cached_state
+        self.context.on('page', lambda page: page.add_init_script(init_script))
 
 
 @dataclass
@@ -314,6 +362,7 @@ class BrowserContext:
                 record_video_dir=self.config.save_recording_path,
                 record_video_size=utils.get_screen_resolution(),
                 locale=self.config.locale,
+                http_credentials=self.config.http_credentials,
             )
 
         if self.config.trace_path:
@@ -1062,10 +1111,17 @@ class BrowserContext:
                 pass
 
             # Get element properties to determine input method
+            tag_handle = await element_handle.get_property("tagName")
+            tag_name = (await tag_handle.json_value()).lower()
             is_contenteditable = await element_handle.get_property('isContentEditable')
+            readonly_handle = await element_handle.get_property("readOnly")
+            disabled_handle = await element_handle.get_property("disabled")
+
+            readonly = await readonly_handle.json_value() if readonly_handle else False
+            disabled = await disabled_handle.json_value() if disabled_handle else False
 
             # Different handling for contenteditable vs input fields
-            if await is_contenteditable.json_value():
+            if (await is_contenteditable.json_value() or tag_name == 'input') and not (readonly or disabled):
                 await element_handle.evaluate('el => el.textContent = ""')
             else:
                 await element_handle.click()

@@ -15,7 +15,7 @@ from browser_use.dom.views import (
     DOMTextNode,
     SelectorMap,
 )
-from browser_use.utils import time_execution_async
+import browser_use.support.utils as utils
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class DomService:
         self.js_code = resources.read_text('browser_use.dom', 'buildDomTree.js')
 
     # region - Clickable elements
-    @time_execution_async('--get_clickable_elements')
+    @utils.time_execution_async('--get_clickable_elements')
     async def get_clickable_elements(
             self,
             highlight_elements: bool = True,
@@ -44,7 +44,7 @@ class DomService:
         element_tree, selector_map = await self._build_dom_tree(highlight_elements, focus_element, viewport_expansion)
         return DOMState(element_tree=element_tree, selector_map=selector_map)
 
-    @time_execution_async('--build_dom_tree')
+    @utils.time_execution_async('--build_dom_tree')
     async def _build_dom_tree(
             self,
             highlight_elements: bool,
@@ -77,7 +77,7 @@ class DomService:
 
         return await self._construct_dom_tree(eval_page)
 
-    @time_execution_async('--construct_dom_tree')
+    @utils.time_execution_async('--construct_dom_tree')
     async def _construct_dom_tree(
             self,
             eval_page: dict,

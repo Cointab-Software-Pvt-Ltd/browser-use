@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from posthog import Posthog
 
 from browser_use.telemetry.views import BaseTelemetryEvent
-from browser_use.utils import singleton
+import browser_use.support.utils as utils
 
 load_dotenv()
 
@@ -20,7 +20,7 @@ POSTHOG_EVENT_SETTINGS = {
 }
 
 
-@singleton
+@utils.singleton
 class ProductTelemetry:
 	"""
 	Service for capturing anonymized telemetry data.

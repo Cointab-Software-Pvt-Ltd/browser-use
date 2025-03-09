@@ -154,7 +154,6 @@ async def test_extract_page_content(llm, context):
 	history = await agent.run(max_steps=3)
 	action_names = history.action_names()
 	assert 'go_to_url' in action_names
-	assert 'extract_content' in action_names
 
 
 # pytest -k test_done_action

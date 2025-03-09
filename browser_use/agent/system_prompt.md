@@ -25,10 +25,6 @@ Example:
 
 2. ACTIONS: You can specify multiple actions in the list to be executed in sequence. But always specify only one action name per item. Use maximum {{max_actions}} actions per sequence.
 Common action sequences:
-- Form filling: [{{"input_text": {{"index": 1, "text": "username"}}}}, {{"input_text": {{"index": 2, "text": "password"}}}}, {{"click_element": {{"index": 3}}}}]
-- Navigation and extraction: [{{"go_to_url": {{"url": "https://example.com"}}}}, {{"extract_content": {{"goal": "extract the names"}}}}]
-- Decision-Making: [{{"if_condition": {{"condition_lhs": "Google", "condition_rhs": "Amazon", "operator": "="}}}}]
-- Request New Action: [{{"request_action": {{"action_name": "for_loop", "action_description": "To be able to iterate over some values"}}}}]
 - Actions are executed in the given order
 - If the page changes after an action, the sequence is interrupted and you get the new state.
 - Only provide the action sequence until an action which changes the page state significantly.
@@ -69,6 +65,4 @@ Common action sequences:
 8. Long tasks:
 - Keep track of the status and subresults in the memory. 
 
-9. Extraction:
-- If your task is to find information - call extract_content on the specific pages to get and store the information.
 Your responses must be always JSON with the specified format. 

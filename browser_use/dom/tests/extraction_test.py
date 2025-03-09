@@ -4,7 +4,7 @@ import time
 from browser_use.browser.browser import Browser, BrowserConfig
 from browser_use.browser.context import BrowserContext, BrowserContextConfig
 from browser_use.dom.service import DomService
-from browser_use.utils import time_execution_sync
+import browser_use.support.utils as utils
 
 
 async def test_process_html_file():
@@ -40,7 +40,7 @@ async def test_process_html_file():
 
 			async def test_viewport(expansion: int, description: str):
 				print(f'\n{description}:')
-				dom_state = await time_execution_sync(f'get_clickable_elements ({description})')(
+				dom_state = await utils.time_execution_sync(f'get_clickable_elements ({description})')(
 					dom_service.get_clickable_elements
 				)(highlight_elements=True, viewport_expansion=expansion)
 
@@ -123,7 +123,7 @@ async def test_focus_vs_all_elements():
 
 					# First get all elements
 					print('\nGetting all elements:')
-					all_elements_state = await time_execution_sync('get_all_elements')(dom_service.get_clickable_elements)(
+					all_elements_state = await utils.time_execution_sync('get_all_elements')(dom_service.get_clickable_elements)(
 						highlight_elements=True, viewport_expansion=100
 					)
 

@@ -2,15 +2,16 @@ import asyncio
 import enum
 import json
 import logging
+import re
 from typing import Dict, Generic, Optional, Type, TypeVar
 
 import pyautogui
 import pyotp
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.prompts import PromptTemplate
 # from lmnr.sdk.laminar import Laminar
 from pydantic import BaseModel
 
+import browser_use.support.utils as utils
 from browser_use.agent.views import ActionModel, ActionResult
 from browser_use.browser.context import BrowserContext
 from browser_use.controller.registry.service import Registry
@@ -22,14 +23,13 @@ from browser_use.controller.views import (
     NoParamsAction,
     OpenTabAction,
     ScrollAction,
-    SearchGoogleAction,
     SendKeysAction,
     SwitchTabAction,
     RequestAction,
     IfConditionAction,
     PhysicalClickElementAction,
+    GenerateTOTP,
 )
-from browser_use.utils import time_execution_sync
 
 logger = logging.getLogger(__name__)
 
@@ -73,19 +73,6 @@ class Controller(Generic[Context]):
 
         # Basic Navigation Actions
         @self.registry.action(
-            'Search the query in Google in the current tab, the query should be a search query like humans search in Google, concrete and not vague or super long. More the single most important items. ',
-            param_model=SearchGoogleAction,
-        )
-        async def search_google(params: SearchGoogleAction, browser: BrowserContext):
-            page = await browser.get_current_page()
-            await page.goto(f'https://www.google.com/search?q={params.query}&udm=14')
-            await page.wait_for_load_state()
-            msg = f'🔍  Searched for "{params.query}" in Google'
-            logger.info(msg)
-            return ActionResult(extracted_content=msg, include_in_memory=True)
-
-        # Basic Navigation Actions
-        @self.registry.action(
             'Returns the last file which was downloaded in browser',
         )
         async def get_downloaded_file_path(browser: BrowserContext):
@@ -96,6 +83,7 @@ class Controller(Generic[Context]):
 
         @self.registry.action('Navigate to URL in the current tab', param_model=GoToUrlAction)
         async def go_to_url(params: GoToUrlAction, browser: BrowserContext):
+            await browser.create_new_tab()
             page = await browser.get_current_page()
             await page.goto(params.url)
             await page.wait_for_load_state()
@@ -153,11 +141,16 @@ class Controller(Generic[Context]):
             return ActionResult(extracted_content=msg, include_in_memory=True)
 
         # wait for x seconds
-        @self.registry.action('Generate TOTP from Key')
-        async def generate_totp(key: str):
-            msg = f'🕒  Generating TOTP for key'
+        @self.registry.action('Generate TOTP from Key', param_model=GenerateTOTP)
+        async def generate_totp(params: GenerateTOTP, browser: BrowserContext):
+            totp_otp = pyotp.TOTP(params.totp_key).now()
+            if params.save_in_secret_with_key is not None:
+                browser.agent.sensitive_data[params.save_in_secret_with_key] = totp_otp
+                msg = f'🕒  Generating TOTP for key, and saving in secret'
+            else:
+                msg = f'🕒  Generating TOTP for key'
             logger.info(msg)
-            return ActionResult(extracted_content=pyotp.TOTP(key).now(), include_in_memory=True)
+            return ActionResult(extracted_content=totp_otp, include_in_memory=True)
 
         # Element Interaction Actions
         @self.registry.action('Click element', param_model=ClickElementAction)
@@ -215,6 +208,9 @@ class Controller(Generic[Context]):
             param_model=InputTextAction,
         )
         async def input_text(params: InputTextAction, browser: BrowserContext, has_sensitive_data: bool = False):
+            if params.secret_key is not None:
+                params.text = replace_secrets("<secret>" + params.secret_key + "</secret>",
+                                              browser.agent.sensitive_data)
             if params.xpath is None:
                 if params.index not in await browser.get_selector_map():
                     raise Exception(f'Element index {params.index} does not exist - retry or use alternative actions')
@@ -249,6 +245,20 @@ class Controller(Generic[Context]):
             logger.info(msg)
             return ActionResult(extracted_content=msg, include_in_memory=True)
 
+        def replace_secrets(value, sensitive_data):
+            secret_pattern = re.compile(r'<secret>(.*?)</secret>')
+            if isinstance(value, str):
+                matches = secret_pattern.findall(value)
+                for placeholder in matches:
+                    if placeholder in sensitive_data:
+                        value = value.replace(f'<secret>{placeholder}</secret>', sensitive_data[placeholder])
+                return value
+            elif isinstance(value, dict):
+                return {k: replace_secrets(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [replace_secrets(v) for v in value]
+            return value
+
         @self.registry.action('Open url in new tab', param_model=OpenTabAction)
         async def open_tab(params: OpenTabAction, browser: BrowserContext):
             await browser.create_new_tab(params.url)
@@ -257,28 +267,6 @@ class Controller(Generic[Context]):
             return ActionResult(extracted_content=msg, include_in_memory=True)
 
         # Content Actions
-        @self.registry.action(
-            'Extract page content to retrieve specific information from the page, e.g. all company names, a specifc description, all information about, links with companies in structured format or simply links',
-        )
-        async def extract_content(goal: str, browser: BrowserContext, page_extraction_llm: BaseChatModel):
-            page = await browser.get_current_page()
-            import markdownify
-
-            content = markdownify.markdownify(await page.content())
-
-            prompt = 'Your task is to extract the content of the page. You will be given a page and a goal and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format. Extraction goal: {goal}, Page: {page}'
-            template = PromptTemplate(input_variables=['goal', 'page'], template=prompt)
-            try:
-                output = page_extraction_llm.invoke(template.format(goal=goal, page=content))
-                msg = f'📄  Extracted from page\n: {output.content}\n'
-                logger.info(msg)
-                return ActionResult(extracted_content=msg, include_in_memory=True)
-            except Exception as e:
-                logger.debug(f'Error extracting content: {e}')
-                msg = f'📄  Extracted from page\n: {content}\n'
-                logger.info(msg)
-                return ActionResult(extracted_content=msg)
-
         @self.registry.action(
             'Scroll down the page by pixel amount - if no amount is specified, scroll down one page',
             param_model=ScrollAction,
@@ -557,7 +545,7 @@ class Controller(Generic[Context]):
 
     # Act --------------------------------------------------------------------
 
-    @time_execution_sync('--act')
+    @utils.time_execution_sync('--act')
     async def act(
             self,
             action: ActionModel,

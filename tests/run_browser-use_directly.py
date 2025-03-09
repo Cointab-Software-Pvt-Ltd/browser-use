@@ -4,7 +4,7 @@ import os
 import re
 
 from browser_use.agent.service import Agent
-from browser_use.browser.browser import Browser, BrowserConfig, BrowserContextConfig
+from browser_use.browser.browser import Browser, BrowserConfig, ExtensionConfig, BrowserContextConfig
 from browser_use.support import utils
 
 _global_browser = None
@@ -53,17 +53,15 @@ async def run_org_agent(
     trace_file = None
     global _global_browser, _global_browser_context, _global_agent, _global_secret_file_path
     try:
-        extra_chromium_args = []
-        extra_chromium_args.append("--start-maximized")
+        chrome_profile_data = None
         if use_own_browser:
             chrome_path = os.getenv("CHROME_PATH", None)
             if chrome_path == "":
                 chrome_path = None
-            chrome_user_data = os.getenv("CHROME_USER_DATA", None)
-            if chrome_user_data:
-                extra_chromium_args += [f"--user-data-dir={chrome_user_data}"]
+            chrome_profile_data = os.getenv("CHROME_USER_DATA", None)
         else:
             chrome_path = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+            # chrome_path = None
 
         if _global_browser is None:
             _global_browser = Browser(
@@ -71,7 +69,11 @@ async def run_org_agent(
                     headless=headless,
                     disable_security=disable_security,
                     chrome_instance_path=chrome_path,
-                    extra_chromium_args=extra_chromium_args,
+                    chrome_profile_data=chrome_profile_data,
+                    extensions=[
+                        ExtensionConfig(name='ublock-lite', github_url="https://github.com/uBlockOrigin/uBOL-home"),
+                        ExtensionConfig(name='pdf-viewer', github_url="https://github.com/Rob--W/pdf.js")
+                    ],
                 )
             )
 
@@ -101,6 +103,8 @@ async def run_org_agent(
                 max_actions_per_step=max_actions_per_step,
                 tool_calling_method=tool_calling_method
             )
+        _global_browser_context.add_agent(_global_agent)
+
         if history_file_input is None:
             history = await _global_agent.run(max_steps=max_steps)
 
@@ -216,7 +220,7 @@ async def run_browser_agent(
 
 
 async def exec_tasks():
-    global _global_browser_context, _global_history_file_path
+    global _global_browser_context, _global_history_file_path, _global_secret_file_path
     print("Enter Flow Code: ")
     run_history = input()
     _global_history_file_path = "history" + ("_" + run_history if len(run_history) > 0 else "") + ".json"

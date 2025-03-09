@@ -16,7 +16,7 @@ from browser_use.telemetry.views import (
 	ControllerRegisteredFunctionsTelemetryEvent,
 	RegisteredFunction,
 )
-from browser_use.utils import time_execution_async, time_execution_sync
+import browser_use.support.utils as utils
 
 Context = TypeVar('Context')
 
@@ -29,7 +29,7 @@ class Registry(Generic[Context]):
 		self.telemetry = ProductTelemetry()
 		self.exclude_actions = exclude_actions if exclude_actions is not None else []
 
-	@time_execution_sync('--create_param_model')
+	@utils.time_execution_sync('--create_param_model')
 	def _create_param_model(self, function: Callable) -> Type[BaseModel]:
 		"""Creates a Pydantic model from function signature"""
 		sig = signature(function)
@@ -85,7 +85,7 @@ class Registry(Generic[Context]):
 
 		return decorator
 
-	@time_execution_async('--execute_action')
+	@utils.time_execution_async('--execute_action')
 	async def execute_action(
 		self,
 		action_name: str,
@@ -170,7 +170,7 @@ class Registry(Generic[Context]):
 			params.__dict__[key] = replace_secrets(value)
 		return params
 
-	@time_execution_sync('--create_action_model')
+	@utils.time_execution_sync('--create_action_model')
 	def create_action_model(self, include_actions: Optional[list[str]] = None) -> Type[ActionModel]:
 		"""Creates a Pydantic model from registered actions"""
 		fields = {

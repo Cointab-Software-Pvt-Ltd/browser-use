@@ -5,7 +5,7 @@ import pytest
 
 from browser_use.browser.browser import Browser, BrowserConfig
 from browser_use.dom.views import DOMBaseNode, DOMElementNode, DOMTextNode
-from browser_use.utils import time_execution_sync
+import browser_use.support.utils as utils
 
 
 class ElementTreeSerializer:
@@ -82,7 +82,7 @@ async def test_highlight_elements():
 				print(state.element_tree.clickable_elements_to_string())
 				action = input('Select next action: ')
 
-				await time_execution_sync('remove_highlight_elements')(context.remove_highlights)()
+				await utils.time_execution_sync('remove_highlight_elements')(context.remove_highlights)()
 
 				node_element = state.selector_map[int(action)]
 

@@ -16,7 +16,7 @@ from browser_use.agent.message_manager.views import MessageMetadata
 from browser_use.agent.prompts import AgentMessagePrompt
 from browser_use.agent.views import ActionResult, AgentOutput, AgentStepInfo, MessageManagerState
 from browser_use.browser.views import BrowserState
-from browser_use.utils import time_execution_sync
+import browser_use.support.utils as utils
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +106,7 @@ class MessageManager:
 		self._add_message_with_tokens(msg)
 		self.task = new_task
 
-	@time_execution_sync('--add_state_message')
+	@utils.time_execution_sync('--add_state_message')
 	def add_state_message(
 		self,
 		state: BrowserState,
@@ -167,7 +167,7 @@ class MessageManager:
 			msg = AIMessage(content=plan)
 			self._add_message_with_tokens(msg, position)
 
-	@time_execution_sync('--get_messages')
+	@utils.time_execution_sync('--get_messages')
 	def get_messages(self) -> List[BaseMessage]:
 		"""Get current message list, potentially trimmed to max tokens"""
 
@@ -195,7 +195,7 @@ class MessageManager:
 		metadata = MessageMetadata(tokens=token_count)
 		self.state.history.add_message(message, metadata, position)
 
-	@time_execution_sync('--filter_sensitive_data')
+	@utils.time_execution_sync('--filter_sensitive_data')
 	def _filter_sensitive_data(self, message: BaseMessage) -> BaseMessage:
 		"""Filter out sensitive data from the message"""
 

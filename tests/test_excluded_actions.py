@@ -63,7 +63,6 @@ async def test_only_open_tab_allowed(llm, context):
 		'click_element',
 		'input_text',
 		'switch_tab',
-		'extract_content',
 		'done',
 		'scroll_down',
 		'scroll_up',

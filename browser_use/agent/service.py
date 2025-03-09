@@ -20,6 +20,7 @@ from langchain_core.messages import (
 # from lmnr.sdk.decorators import observe
 from pydantic import BaseModel, ValidationError
 
+import browser_use.support.utils as utils
 from browser_use.agent.gif import create_history_gif
 from browser_use.agent.message_manager.service import MessageManager, MessageManagerSettings
 from browser_use.agent.message_manager.utils import convert_input_messages, extract_json_from_model_output, \
@@ -52,7 +53,6 @@ from browser_use.telemetry.views import (
     AgentRunTelemetryEvent,
     AgentStepTelemetryEvent,
 )
-from browser_use.utils import time_execution_async, time_execution_sync
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ Context = TypeVar('Context')
 
 
 class Agent(Generic[Context]):
-    @time_execution_sync('--init (agent)')
+    @utils.time_execution_sync('--init (agent)')
     def __init__(
             self,
             task: str,
@@ -138,6 +138,8 @@ class Agent(Generic[Context]):
         self.task = task
         self.llm = llm
         self.controller = controller
+        if sensitive_data is None:
+            sensitive_data = {}
         self.sensitive_data = sensitive_data
 
         self.settings = AgentSettings(
@@ -323,7 +325,7 @@ class Agent(Generic[Context]):
             raise InterruptedError
 
     # @observe(name='agent.step', ignore_output=True, ignore_input=True)
-    @time_execution_async('--step (agent)')
+    @utils.time_execution_async('--step (agent)')
     async def step(self, step_info: Optional[AgentStepInfo] = None) -> None:
         """Execute one step of the task"""
         logger.info(f'📍 Step {self.state.n_steps}')
@@ -428,7 +430,7 @@ class Agent(Generic[Context]):
                 )
                 self._make_history_item(model_output, state, result, metadata)
 
-    @time_execution_async('--handle_step_error (agent)')
+    @utils.time_execution_async('--handle_step_error (agent)')
     async def _handle_step_error(self, error: Exception) -> list[ActionResult]:
         """Handle all types of errors that can occur during a step"""
         include_trace = logger.isEnabledFor(logging.DEBUG)
@@ -502,7 +504,7 @@ class Agent(Generic[Context]):
         else:
             return input_messages
 
-    @time_execution_async('--get_next_action (agent)')
+    @utils.time_execution_async('--get_next_action (agent)')
     async def get_next_action(self, input_messages: list[BaseMessage]) -> AgentOutput:
         """Get next action from LLM based on current state"""
         input_messages = self._convert_input_messages(input_messages)
@@ -578,7 +580,7 @@ class Agent(Generic[Context]):
         return False, False
 
     # @observe(name='agent.run', ignore_output=True)
-    @time_execution_async('--run (agent)')
+    @utils.time_execution_async('--run (agent)')
     async def run(self, max_steps: int = 100,
                   after_step_func: Callable = None) -> AgentHistoryList:
         """Execute the task with maximum number of steps"""
@@ -682,7 +684,7 @@ class Agent(Generic[Context]):
             logger.error(f"Error during cleanup: {e}")
 
     # @observe(name='controller.multi_act')
-    @time_execution_async('--multi-act (agent)')
+    @utils.time_execution_async('--multi-act (agent)')
     async def multi_act(
             self,
             actions: list[ActionModel],
@@ -793,6 +795,9 @@ class Agent(Generic[Context]):
             logger.info('✅ Successfully')
         else:
             logger.info('❌ Unfinished')
+
+        total_tokens = self.state.history.total_input_tokens()
+        logger.info(f'📝 Total tokens used (approximate): {total_tokens}')
 
         if self.register_done_callback:
             await self.register_done_callback(self.state.history)

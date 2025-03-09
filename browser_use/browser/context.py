@@ -27,7 +27,6 @@ from rebrowser_playwright.async_api import (
 )
 
 import browser_use.support.utils as utils
-import browser_use.utils as utils
 from browser_use.browser.views import (
     BrowserError,
     BrowserState,
@@ -116,6 +115,7 @@ class BrowserContextConfig:
 
     save_recording_path: str | None = None
     save_downloads_path: str | None = None
+    save_har_path: str | None = None
     trace_path: str | None = None
     locale: str | None = None
     user_agent: str | None = None
@@ -205,6 +205,8 @@ class BrowserContext:
         # Initialize these as None - they'll be set up when needed
         self.session: BrowserSession | None = None
 
+        self.agent = None
+
     async def __aenter__(self):
         """Async context manager entry"""
         await self._initialize_session()
@@ -266,6 +268,10 @@ class BrowserContext:
                 gc.collect()
             except Exception as e:
                 logger.warning(f'Failed to force close browser context: {e}')
+
+    def add_agent(self, agent):
+        self.agent = agent
+        """Initialize the browser session"""
 
     @utils.time_execution_async('--initialize_session')
     async def _initialize_session(self):
@@ -349,10 +355,34 @@ class BrowserContext:
         if self.browser.config.cdp_url and len(browser.contexts) > 0:
             context = browser.contexts[0]
         elif self.browser.config.chrome_instance_path and len(browser.contexts) > 0:
-            # Connect to existing Chrome instance instead of creating new one
             context = browser.contexts[0]
+        elif self.browser.config.has_extensions() or self.browser.config.chrome_profile_data is not None:
+            context = await self.browser.playwright.chromium.launch_persistent_context(
+                user_data_dir=self.browser.config.chrome_profile_data,
+
+                no_viewport=True,
+                **({"user_agent": self.config.user_agent} if self.config.user_agent is not None else {}),
+                java_script_enabled=True,
+                bypass_csp=self.config.disable_security,
+                ignore_https_errors=self.config.disable_security,
+                record_video_dir=self.config.save_recording_path,
+                record_har_path=self.config.save_har_path,
+                record_video_size=utils.get_screen_resolution(),
+                locale=self.config.locale,
+                http_credentials=self.config.http_credentials,
+
+                headless=self.browser.config.headless,
+                channel='chrome',
+                ignore_default_args=["--disable-extensions"],
+                args=[
+                         '--disable-blink-features=AutomationControlled',
+                         f'--window-position={self.browser.offset_x},{self.browser.offset_y}',
+                         f'--window-size={self.browser.screen_size["width"]},{self.browser.screen_size["height"]}',
+                         '--force-device-scale-factor=1',
+                     ] + self.browser.disable_security_args + self.browser.config.extra_chromium_args,
+                proxy=self.browser.config.proxy,
+            )
         else:
-            # Original code for creating new context
             context = await browser.new_context(
                 no_viewport=True,
                 **({"user_agent": self.config.user_agent} if self.config.user_agent is not None else {}),
@@ -360,6 +390,7 @@ class BrowserContext:
                 bypass_csp=self.config.disable_security,
                 ignore_https_errors=self.config.disable_security,
                 record_video_dir=self.config.save_recording_path,
+                record_har_path=self.config.save_har_path,
                 record_video_size=utils.get_screen_resolution(),
                 locale=self.config.locale,
                 http_credentials=self.config.http_credentials,

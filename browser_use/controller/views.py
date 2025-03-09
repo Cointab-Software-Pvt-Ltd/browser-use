@@ -4,8 +4,6 @@ from pydantic import BaseModel, model_validator
 
 
 # Action Input Models
-class SearchGoogleAction(BaseModel):
-    query: str
 
 
 class GoToUrlAction(BaseModel):
@@ -40,7 +38,8 @@ class PhysicalClickElementAction(BaseModel):
 
 class InputTextAction(BaseModel):
     index: int
-    text: str
+    text: Optional[str] = None
+    secret_key: Optional[str] = None
     xpath: Optional[str] = None
     has_human_keystroke: Optional[bool] = True
 
@@ -60,6 +59,11 @@ class OpenTabAction(BaseModel):
 
 class ScrollAction(BaseModel):
     amount: Optional[int] = None  # The number of pixels to scroll. If None, scroll down/up one page
+
+
+class GenerateTOTP(BaseModel):
+    totp_key: str
+    save_in_secret_with_key: Optional[str] = None
 
 
 class SendKeysAction(BaseModel):

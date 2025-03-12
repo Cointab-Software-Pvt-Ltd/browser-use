@@ -138,7 +138,7 @@ class BrowserSession:
             context: PlaywrightBrowserContext,
             cached_state: BrowserState | None = None
     ):
-        init_script = """
+        self.init_script = """
     		(() => {
     			if (!window.getEventListeners) {
     				window.getEventListeners = function (node) {
@@ -178,7 +178,6 @@ class BrowserSession:
     		"""
         self.context = context
         self.cached_state = cached_state
-        self.context.on('page', lambda page: page.add_init_script(init_script))
 
 
 @dataclass
@@ -350,6 +349,7 @@ class BrowserContext:
                     if page2.url.startswith('chrome-extension://'):
                         await self.close_tab(page2)
             if not is_close_page_current_page:
+                await page.add_init_script(self.session.init_script)
                 session = await self.get_session()
                 browser_page = BrowserPage(page, self, session, self.page_count)
                 await browser_page.create_stream()
@@ -1209,6 +1209,25 @@ class BrowserContext:
         except Exception as e:
             logger.debug(f'Failed to input text into element: {repr(element_node)}. Error: {str(e)}')
             raise BrowserError(f'Failed to input text into index {element_node.highlight_index}')
+
+    @utils.time_execution_async('--get_text')
+    async def get_text(self, element_node: DOMElementNode):
+        """
+        Input text into an element with proper error handling and state management.
+        Handles different types of input fields and ensures proper element state before input.
+        """
+        try:
+            element_handle = await self.get_locate_element(element_node)
+            if element_handle is None:
+                raise BrowserError(f'Element: {repr(element_node)} not found')
+            try:
+                element_text = await element_handle.input_value()
+            except Exception as e:
+                element_text = await element_handle.inner_text()
+            return element_text
+        except Exception as e:
+            logger.debug(f'Failed to get text from element: {repr(element_node)}. Error: {str(e)}')
+            raise BrowserError(f'Failed to get text from index {element_node.highlight_index}')
 
     @utils.time_execution_async('--click_element_node')
     async def _click_element_node(self, element_node: DOMElementNode, right_click: bool) -> Optional[str]:

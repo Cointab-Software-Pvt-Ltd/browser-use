@@ -119,7 +119,7 @@ class DOMElementNode(DOMBaseNode):
         return '\n'.join(text_parts).strip()
 
     @time_execution_sync('--clickable_elements_to_string')
-    def clickable_elements_to_string(self, include_attributes: list[str] | None = None) -> str:
+    def clickable_elements_to_string(self, include_attributes: list[str] | None = None, is_text=False) -> str:
         """Convert the processed DOM content to HTML."""
         formatted_text = []
 
@@ -142,7 +142,7 @@ class DOMElementNode(DOMBaseNode):
                         if text in attributes:
                             attributes.remove(text)
                         attributes_str = ';'.join(attributes)
-                    line = f'[{node.highlight_index}]<{node.tag_name} '
+                    line = '['+('Text-' if is_text else '')+str(node.highlight_index)+']<'+node.tag_name+' '
                     if attributes_str:
                         line += f'{attributes_str}'
                     if text:
@@ -157,7 +157,7 @@ class DOMElementNode(DOMBaseNode):
                 for child in node.children:
                     process_node(child, depth + 1)
 
-            elif isinstance(node, DOMTextNode):
+            elif isinstance(node, DOMTextNode) and is_text is False:
                 # Add text only if it doesn't have a highlighted parent
                 if not node.has_parent_with_highlight_index() and node.is_visible:  # and node.is_parent_top_element()
                     formatted_text.append(f'{node.text}')

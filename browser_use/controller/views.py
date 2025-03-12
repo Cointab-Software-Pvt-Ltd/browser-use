@@ -17,9 +17,16 @@ class RequestAction(BaseModel):
 
 class ClickElementAction(BaseModel):
     index: int
+    is_text_index: Optional[bool] = False
     xpath: Optional[str] = None
     right_click: Optional[bool] = False
-    text_element_as_interactive: Optional[bool] = False
+
+
+class GetElementText(BaseModel):
+    index: int
+    is_text_index: Optional[bool] = False
+    xpath: Optional[str] = None
+    save_in_secret_with_key: Optional[str] = None
 
 
 class PhysicalClickElementAction(BaseModel):

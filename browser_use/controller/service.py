@@ -28,6 +28,7 @@ from browser_use.controller.views import (
     RequestAction,
     PhysicalClickElementAction,
     GenerateTOTP,
+    GetElementText,
 )
 
 logger = logging.getLogger(__name__)
@@ -144,10 +145,38 @@ class Controller(Generic[Context]):
             logger.info(msg)
             return ActionResult(extracted_content=totp_otp, include_in_memory=True)
 
+        # wait for x seconds
+        @self.registry.action('Get Text from some text element in WebPage', param_model=GetElementText)
+        async def get_element_text(params: GetElementText, browser: BrowserContext):
+            session = await browser.get_session()
+
+            if params.is_text_index:
+                await browser.get_state(is_text=True)
+
+            if params.xpath is None:
+                if params.index not in await browser.get_selector_map():
+                    raise Exception(
+                        f'Element with index {params.index} does not exist - retry or use alternative actions')
+
+                element_node = await browser.get_dom_element_by_index(params.index)
+            else:
+                element_node = await browser.get_dom_element_by_xpath(params.xpath)
+            element_text = await browser.get_text(element_node)
+            if params.save_in_secret_with_key is not None:
+                browser.agent.sensitive_data[params.save_in_secret_with_key] = element_text
+                msg = f'🕒  Get Element Text for key, and saving in secret'
+            else:
+                msg = f'🕒  Get Element Text for key'
+            logger.info(msg)
+            return ActionResult(extracted_content=element_text, include_in_memory=True)
+
         # Element Interaction Actions
         @self.registry.action('Click element', param_model=ClickElementAction)
         async def click_element(params: ClickElementAction, browser: BrowserContext):
             session = await browser.get_session()
+
+            if params.is_text_index:
+                await browser.get_state(is_text=True)
 
             if params.xpath is None:
                 if params.index not in await browser.get_selector_map():

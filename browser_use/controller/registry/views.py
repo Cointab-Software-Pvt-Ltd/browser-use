@@ -48,6 +48,17 @@ class ActionModel(BaseModel):
 				return param['index']
 		return None
 
+	def get_is_text_index(self) -> bool | None:
+		"""Get the index of the action"""
+		# {'clicked_element': {'index':5}}
+		params = self.model_dump(exclude_unset=True).values()
+		if not params:
+			return None
+		for param in params:
+			if param is not None and 'is_text_index' in param:
+				return param['is_text_index']
+		return False
+
 	def set_index(self, index: int):
 		"""Overwrite the index of the action"""
 		# Get the action name and params

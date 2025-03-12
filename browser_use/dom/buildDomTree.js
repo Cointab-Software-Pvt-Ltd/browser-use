@@ -4,9 +4,12 @@
         focusHighlightIndex: -1,
         viewportExpansion: 0,
         debugMode: false,
+        forTextElements: false,
     }
 ) => {
-    const {doHighlightElements, focusHighlightIndex, viewportExpansion, debugMode} = args;
+    let {doHighlightElements, focusHighlightIndex, viewportExpansion, debugMode, forTextElements} = args;
+    const doHighlightElementsIn = !!doHighlightElements;
+    doHighlightElements = forTextElements ? false : doHighlightElementsIn;
     let highlightIndex = 0; // Reset highlight index
 
     // Add timing stack to handle recursion
@@ -1125,24 +1128,72 @@
         }
     }
 
-    Object.keys(DOM_HASH_MAP).forEach(id => {
-        let node = DOM_HASH_MAP[id]
-        if (!node.highlightIndex && node.highlightIndex != 0 && node.isTopElement && node.isVisible && !node.isInteractive && (!node.children || node.children.length == 0)) {
-            node.isInteractive = true;
-            node.isInViewport = true;
-            node.highlightIndex = highlightIndex++;
+    if (forTextElements) {
+        highlightIndex = 0
+        let keys = Object.keys(DOM_HASH_MAP);
+        keys.forEach(id => {
+            let node = DOM_HASH_MAP[id];
+            if (!!node.highlightIndex || node.highlightIndex != 0) {
+                node.highlightIndex = null;
+                delete node.highlightIndex
+            }
+        })
+        keys.forEach(id => {
+            let node = DOM_HASH_MAP[id];
+            if (!!node.type && node.type == "TEXT_NODE" && !!node.isVisible) {
+                var pKey = keys.findIndex(pKey => {
+                    var pNode = DOM_HASH_MAP[pKey];
+                    return (!pNode.highlightIndex && pNode.highlightIndex != 0 && !!pNode.children && pNode.children.length > 0 && pNode.children.indexOf(id) >= 0) && pNode.isTopElement && pNode.isVisible && !pNode.isInteractive;
+                })
+                if (pKey >= 0) {
+                    pKey = keys[pKey]
+                    var pNode = DOM_HASH_MAP[pKey];
+                    pNode.isInteractive = true;
+                    pNode.isInViewport = true;
+                    pNode.highlightIndex = highlightIndex++;
 
-            if (doHighlightElements) {
-                if (focusHighlightIndex >= 0) {
-                    if (focusHighlightIndex === node.highlightIndex) {
-                        highlightElement(node.node, node.highlightIndex, node.parentIframe);
+                    if (doHighlightElementsIn) {
+                        if (focusHighlightIndex >= 0) {
+                            if (focusHighlightIndex === pNode.highlightIndex) {
+                                highlightElement(pNode.node, pNode.highlightIndex, pNode.parentIframe);
+                            }
+                        } else {
+                            highlightElement(pNode.node, pNode.highlightIndex, pNode.parentIframe);
+                        }
                     }
-                } else {
-                    highlightElement(node.node, node.highlightIndex, node.parentIframe);
                 }
             }
-        }
-    })
+        })
+    } else {
+        Object.keys(DOM_HASH_MAP).forEach(id => {
+            let node = DOM_HASH_MAP[id]
+            if (!node.highlightIndex && node.highlightIndex != 0 && node.isTopElement && node.isVisible && !node.isInteractive && (!node.children || node.children.length == 0)) {
+                node.isInteractive = true;
+                node.isInViewport = true;
+                node.highlightIndex = highlightIndex++;
+
+                if (doHighlightElements) {
+                    if (focusHighlightIndex >= 0) {
+                        if (focusHighlightIndex === node.highlightIndex) {
+                            highlightElement(node.node, node.highlightIndex, node.parentIframe);
+                        }
+                    } else {
+                        highlightElement(node.node, node.highlightIndex, node.parentIframe);
+                    }
+                }
+            }
+        })
+    }
+
+    Object.keys(DOM_HASH_MAP).forEach(id => {
+        let node = DOM_HASH_MAP[id]
+
+        node.node = null;
+        node.parentIframe = null;
+
+        delete node.node;
+        delete node.parentIframe;
+    });
 
     return debugMode ?
         {rootId, map: DOM_HASH_MAP, perfMetrics: PERF_METRICS} :

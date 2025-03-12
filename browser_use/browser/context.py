@@ -52,8 +52,8 @@ class BrowserContextConfig:
         cookies_file: None
             Path to cookies file for persistence
 
-            disable_security: True
-                    Disable browser security features
+        disable_security: True
+                Disable browser security features
 
         minimum_wait_page_load_time: 0.5
             Minimum time to wait before getting page state for LLM input

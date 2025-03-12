@@ -20,6 +20,7 @@ _global_agent = None
 
 _global_history_file_path = "history.json"
 _global_secret_file_path = "secret.json"
+_global_cookies_file_path = "cookies.json"
 
 _global_queue = asyncio.Queue()
 
@@ -60,7 +61,7 @@ async def run_org_agent(
     model_thoughts = None
     history_file = None
     trace_file = None
-    global _global_browser, _global_browser_context, _global_agent, _global_secret_file_path
+    global _global_browser, _global_browser_context, _global_agent, _global_secret_file_path, _global_cookies_file_path
     try:
         chrome_profile_data = None
         if use_own_browser:
@@ -93,7 +94,8 @@ async def run_org_agent(
                     save_recording_path=save_recording_path if save_recording_path else None,
                     save_downloads_path=save_downloads_path,
                     no_viewport=True,
-                    screenshot_capture=send
+                    screenshot_capture=send,
+                    cookies_file=_global_cookies_file_path,
                 )
             )
         if task is None:
@@ -230,11 +232,12 @@ async def run_browser_agent(
 
 
 async def exec_tasks():
-    global _global_browser_context, _global_history_file_path, _global_secret_file_path
+    global _global_browser_context, _global_history_file_path, _global_secret_file_path, _global_cookies_file_path
     print("Enter Flow Code: ")
     run_history = input()
     _global_history_file_path = "history" + ("_" + run_history if len(run_history) > 0 else "") + ".json"
     _global_secret_file_path = "secret" + ("_" + run_history if len(run_history) > 0 else "") + ".json"
+    _global_cookies_file_path = "cookies" + ("_" + run_history if len(run_history) > 0 else "") + ".json"
     if len(run_history) == 0:
         print("New Flow to be created as no history code entered")
         while len(run_history) == 0:
@@ -242,6 +245,7 @@ async def exec_tasks():
             run_history = input()
             _global_history_file_path = "history_" + run_history + ".json"
             _global_secret_file_path = "secret_" + run_history + ".json"
+            _global_cookies_file_path = "cookies" + ("_" + run_history if len(run_history) > 0 else "") + ".json"
     elif os.path.exists(_global_history_file_path) is False:
         print("New Flow to be created as history code entered is not present")
     is_new = True

@@ -494,7 +494,7 @@
         const interactiveElements = new Set([
             "a", "button", "details", "embed", "input", "menu", "menuitem",
             "object", "select", "textarea", "canvas", "summary", "dialog",
-            "banner", "label", "div"
+            "banner", "label"
         ]);
 
         const interactiveRoles = new Set(['button-icon', 'dialog', 'button-text-icon-only', 'treeitem', 'alert', 'grid', 'progressbar', 'radio', 'checkbox', 'menuitem', 'option', 'switch', 'dropdown', 'scrollbar', 'combobox', 'a-button-text', 'button', 'region', 'textbox', 'tabpanel', 'tab', 'click', 'button-text', 'spinbutton', 'a-button-inner', 'link', 'menu', 'slider', 'listbox', 'a-dropdown-button', 'button-icon-only', 'searchbox', 'menuitemradio', 'tooltip', 'tree', 'menuitemcheckbox']);
@@ -669,33 +669,103 @@
             return true;
         }
 
-        // Find the correct document context and root element
-        let doc = element.ownerDocument;
-
-        // If we're in an iframe, elements are considered top by default
-        if (doc !== window.document) {
-            return true;
+        // Basic visibility check
+        if (rect.width === 0 || rect.height === 0) {
+            return false;
         }
 
-        // For shadow DOM, we need to check within its own root context
-        const shadowRoot = element.getRootNode();
-        if (shadowRoot instanceof ShadowRoot) {
+        // Check if the element itself is hidden
+        const style = getCachedComputedStyle(element);
+        if (style.display === 'none' || style.visibility === 'hidden') {
+            return false;
+        }
+
+        // If an element is interactive, do interactivity checks instead of topmost checks
+        if (isInteractiveElement(element)) {
+            // For interactive elements, check what's stacked above them
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
 
             try {
-                const topEl = measureDomOperation(
-                    () => shadowRoot.elementFromPoint(centerX, centerY),
-                    'elementFromPoint'
-                );
-                if (!topEl) return false;
+                // Get all elements at this point in stacking order (top to bottom)
+                const elementsAtPoint = document.elementsFromPoint(centerX, centerY);
 
-                let current = topEl;
-                while (current && current !== shadowRoot) {
-                    if (current === element) return true;
-                    current = current.parentElement;
+                if (!elementsAtPoint || elementsAtPoint.length === 0) {
+                    return false;
                 }
-                return false;
+
+                // If our element is the first in the stack, it's definitely interactive
+                if (elementsAtPoint[0] === element) {
+                    return true;
+                }
+
+                // Check if any elements above ours would block interaction
+                let foundOurElement = false;
+                let foundBlockingElement = false;
+
+                for (const el of elementsAtPoint) {
+                    // If we reach our element without finding any blocking elements, it's interactive
+                    if (el === element) {
+                        foundOurElement = true;
+                        break;
+                    }
+
+                    // Skip elements that don't block interaction (transparent overlays, etc.)
+                    const elStyle = getCachedComputedStyle(el);
+                    if (elStyle.pointerEvents === 'none') {
+                        continue;
+                    }
+
+                    // Skip common container elements
+                    const tag = el.tagName.toLowerCase();
+                    if (tag === 'html' || tag === 'body' || tag === 'div' || tag === 'span') {
+                        // Div/span need extra checking - they might be overlays
+                        if (tag === 'div' || tag === 'span') {
+                            // If it has a background or border, it might block interaction
+                            if (elStyle.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+                                elStyle.backgroundColor !== 'transparent') {
+                                // Check if it might be a modal/overlay
+                                if (el.classList.contains('modal') ||
+                                    el.classList.contains('overlay') ||
+                                    el.id.includes('modal') ||
+                                    el.id.includes('overlay')) {
+                                    foundBlockingElement = true;
+                                    break;
+                                }
+                            }
+                        }
+                        continue;
+                    }
+
+                    // If we find another interactive element above ours, it might block interaction
+                    // but only if it's not a child or parent of our element
+                    if (isInteractiveElement(el)) {
+                        // Check if it's a child or parent - those don't block
+                        let isChildOrParent = false;
+
+                        // Check if it's a child
+                        if (element.contains(el)) {
+                            isChildOrParent = true;
+                        }
+
+                        // Check if it's a parent
+                        let parent = element.parentElement;
+                        while (parent) {
+                            if (parent === el) {
+                                isChildOrParent = true;
+                                break;
+                            }
+                            parent = parent.parentElement;
+                        }
+
+                        if (!isChildOrParent) {
+                            foundBlockingElement = true;
+                            break;
+                        }
+                    }
+                }
+
+                return foundOurElement && !foundBlockingElement;
             } catch (e) {
                 return true;
             }
@@ -811,6 +881,8 @@
                 attributes: {},
                 xpath: '/body',
                 children: [],
+                node: node,
+                parentIframe: parentIframe,
             };
 
             // Process children of body
@@ -890,6 +962,8 @@
             attributes: {},
             xpath: getXPathTree(node, true),
             children: [],
+            node: node,
+            parentIframe: parentIframe,
         };
 
         // Get attributes
@@ -1050,6 +1124,25 @@
                 (boundingRectTotal + computedStyleTotal);
         }
     }
+
+    Object.keys(DOM_HASH_MAP).forEach(id => {
+        let node = DOM_HASH_MAP[id]
+        if (!node.highlightIndex && node.highlightIndex != 0 && node.isTopElement && node.isVisible && !node.isInteractive && (!node.children || node.children.length == 0)) {
+            node.isInteractive = true;
+            node.isInViewport = true;
+            node.highlightIndex = highlightIndex++;
+
+            if (doHighlightElements) {
+                if (focusHighlightIndex >= 0) {
+                    if (focusHighlightIndex === node.highlightIndex) {
+                        highlightElement(node.node, node.highlightIndex, node.parentIframe);
+                    }
+                } else {
+                    highlightElement(node.node, node.highlightIndex, node.parentIframe);
+                }
+            }
+        }
+    })
 
     return debugMode ?
         {rootId, map: DOM_HASH_MAP, perfMetrics: PERF_METRICS} :

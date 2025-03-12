@@ -15,16 +15,11 @@ class RequestAction(BaseModel):
     action_description: str
 
 
-class IfConditionAction(BaseModel):
-    condition_lhs: str
-    operator: str
-    condition_rhs: str
-
-
 class ClickElementAction(BaseModel):
     index: int
     xpath: Optional[str] = None
     right_click: Optional[bool] = False
+    text_element_as_interactive: Optional[bool] = False
 
 
 class PhysicalClickElementAction(BaseModel):

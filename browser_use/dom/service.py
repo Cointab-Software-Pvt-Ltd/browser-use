@@ -30,7 +30,6 @@ class DomService:
     def __init__(self, page: 'Page'):
         self.page = page
         self.xpath_cache = {}
-
         self.js_code = resources.read_text('browser_use.dom', 'buildDomTree.js')
 
     # region - Clickable elements

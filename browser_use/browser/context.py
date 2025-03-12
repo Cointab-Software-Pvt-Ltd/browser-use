@@ -13,7 +13,7 @@ import re
 import time
 import uuid
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Callable
 
 from rebrowser_playwright._impl._errors import TimeoutError
 from rebrowser_playwright.async_api import Browser as PlaywrightBrowser
@@ -35,6 +35,7 @@ from browser_use.browser.views import (
 )
 from browser_use.dom.service import DomService
 from browser_use.dom.views import DOMElementNode, SelectorMap
+from browser_use.page.service import BrowserPage
 
 if TYPE_CHECKING:
     from browser_use.browser.browser import Browser
@@ -101,6 +102,8 @@ class BrowserContextConfig:
         http_credentials: None
             Dictionary with HTTP authentication credentials, e.g.
             {"username": "bill", "password": "pa55w0rd"}
+
+        screenshot_capture: None
     """
 
     cookies_file: str | None = None
@@ -125,7 +128,7 @@ class BrowserContextConfig:
     allowed_domains: list[str] | None = None
     include_dynamic_attributes: bool = True
     http_credentials: dict[str, str] | None = None
-
+    screenshot_capture: Callable = None
     _force_keep_context_alive: bool = False
 
 
@@ -188,6 +191,9 @@ class BrowserContextState:
 
 
 class BrowserContext:
+    browser_pages = []
+    page_count = 0
+
     def __init__(
             self,
             browser: 'Browser',
@@ -281,6 +287,7 @@ class BrowserContext:
         playwright_browser = await self.browser.get_playwright_browser()
         context = await self._create_context(playwright_browser)
         self._page_event_handler = None
+        self._add_new_page_listener(context)
 
         # Get or create a page to use
         pages = context.pages
@@ -329,12 +336,30 @@ class BrowserContext:
 
     def _add_new_page_listener(self, context: PlaywrightBrowserContext):
         async def on_page(page: Page):
-            if self.browser.config.cdp_url:
-                await page.reload()  # Reload the page to avoid timeout errors
-            await page.wait_for_load_state()
-            logger.debug(f'New page opened: {page.url}')
-            if self.session is not None:
-                self.state.target_id = None
+            self.page_count += 1
+            close_page = None
+            is_close_page_current_page = False
+            if page.url.startswith('chrome-extension://'):
+                close_page = page
+                is_close_page_current_page = True
+            if close_page is not None and len(self.session.context.pages) > 1:
+                await self.close_tab(close_page)
+            else:
+                is_close_page_current_page = False
+                for page2 in self.session.context.pages:
+                    if page2.url.startswith('chrome-extension://'):
+                        await self.close_tab(page2)
+            if not is_close_page_current_page:
+                session = await self.get_session()
+                browser_page = BrowserPage(page, self, session, self.page_count)
+                await browser_page.create_stream()
+                self.browser_pages.append(browser_page)
+                if self.browser.config.cdp_url:
+                    await page.reload()
+                await page.wait_for_load_state()
+                logger.debug(f'New page opened: {page.url}')
+                if self.session is not None:
+                    self.state.target_id = None
 
         self._page_event_handler = on_page
         context.on('page', on_page)
@@ -704,15 +729,32 @@ class BrowserContext:
             # Continue even if its not fully loaded, because we wait later for the page to load
             logger.debug(f'During go_forward: {e}')
 
-    async def close_current_tab(self):
+    async def close_tab(self, page: Page):
+        """Close the current tab"""
+        await self.close_current_tab(page)
+
+    async def close_current_tab(self, page=None):
         """Close the current tab"""
         session = await self.get_session()
-        page = await self._get_current_page(session)
-        await page.close()
+        self.page_count -= 1
+        if page is None:
+            page = await self._get_current_page(session)
+        page2 = None
+        for browser_page in self.browser_pages:
+            if page2 is None:
+                if browser_page.page.url == page.url:
+                    page2 = browser_page
+            elif page2 is not None:
+                browser_page.decrease_page_no()
+        if page2 is not None:
+            await page2.close()
+            self.browser_pages.remove(page2)
+        else:
+            await page.close()
 
         # Switch to the first available tab if any exist
-        if session.context.pages:
-            await self.switch_to_tab(0)
+        if self.page_count > 1:
+            await self.switch_to_tab(self.page_count - 1)
 
     # otherwise the browser will be closed
 
@@ -1401,7 +1443,7 @@ class BrowserContext:
 
         pages = session.context.pages
         for page in pages:
-            await page.close()
+            await self.close_current_tab(page=page)
 
         session.cached_state = None
         self.state.target_id = None

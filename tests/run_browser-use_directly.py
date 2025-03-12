@@ -2,17 +2,26 @@ import asyncio
 import json
 import os
 import re
+import time
+
+import websockets
 
 from browser_use.agent.service import Agent
 from browser_use.browser.browser import Browser, BrowserConfig, ExtensionConfig, BrowserContextConfig
 from browser_use.support import utils
+from browser_use.support.httpserver import HttpServer
 
+_global_httpserver = HttpServer(8088)
+_global_clients = set()
+_global_last_frame = {}
 _global_browser = None
 _global_browser_context = None
 _global_agent = None
 
 _global_history_file_path = "history.json"
 _global_secret_file_path = "secret.json"
+
+_global_queue = asyncio.Queue()
 
 
 def resolve_sensitive_env_variables(text):
@@ -60,8 +69,8 @@ async def run_org_agent(
                 chrome_path = None
             chrome_profile_data = os.getenv("CHROME_USER_DATA", None)
         else:
-            chrome_path = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-            # chrome_path = None
+            # chrome_path = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+            chrome_path = None
 
         if _global_browser is None:
             _global_browser = Browser(
@@ -84,6 +93,7 @@ async def run_org_agent(
                     save_recording_path=save_recording_path if save_recording_path else None,
                     save_downloads_path=save_downloads_path,
                     no_viewport=True,
+                    screenshot_capture=send
                 )
             )
         if task is None:
@@ -235,10 +245,13 @@ async def exec_tasks():
     elif os.path.exists(_global_history_file_path) is False:
         print("New Flow to be created as history code entered is not present")
     is_new = True
+    is_video = False
     if os.path.exists(_global_history_file_path):
         print("Run history: " + _global_history_file_path)
         current = json.load(open(_global_history_file_path, 'r'))["history"]
         utils.fix_history_save_to_file(current, _global_history_file_path)
+        is_video = True
+        asyncio.create_task(video_stream_server())
         await run_browser_agent(history_file_input=_global_history_file_path)
         print("Steps Done, and saved for replay")
         temp = utils.remove_completed_from_history(current)
@@ -259,6 +272,9 @@ async def exec_tasks():
                 task_text = task_text.strip()
             else:
                 break
+        if not is_video:
+            is_video = True
+            asyncio.create_task(video_stream_server())
         if len(task_text) > 0:
             if task_text.lower() == "show":
                 if _global_browser_context is not None:
@@ -270,6 +286,51 @@ async def exec_tasks():
                 current = utils.remove_completed_from_history(current)
                 for idx, step in enumerate(current):
                     print(str(idx + 1), step["model_output"]["current_state"]["next_goal"])
+
+
+async def handler(websocket):
+    global _global_clients, _global_last_frame
+    _global_clients.add(websocket)
+    try:
+        await websocket.send(json.dumps({"fn": 'size', "size": utils.get_screen_resolution(), "ts": time.time()}))
+        for tab_no in _global_last_frame:
+            await websocket.send(_global_last_frame[tab_no])
+        await websocket.wait_closed()
+    finally:
+        _global_clients.remove(websocket)
+
+
+async def send(params):
+    global _global_clients, _global_queue, _global_last_frame, _global_browser_context
+    _global_last_frame[params["tab_no"]] = json.dumps(
+        {"fn": "frame", "tab_no": params["tab_no"], "frame": params["data"], "ts": time.time(),
+         "page_count": _global_browser_context.browser_pages[
+             len(_global_browser_context.browser_pages) - 1].get_page_no()})
+    if len(_global_clients) > 0:
+        _global_queue.put_nowait(_global_last_frame[params["tab_no"]])
+
+
+async def send_to_websocket():
+    global _global_queue, _global_clients, _global_browser_context
+    while True:
+        frame = await _global_queue.get()
+        _global_queue.task_done()
+        for websocket in _global_clients:
+            await websocket.send(frame)
+        await asyncio.sleep(0.005)
+
+
+async def video_stream_server():
+    global _global_httpserver
+    asyncio.create_task(send_to_websocket())
+    print("Video Streaming Server is Starting")
+    try:
+        _global_httpserver.start()
+        print("Video Streaming Server is listening on http://localhost:8088")
+        server = await websockets.serve(handler, "localhost", 8089)
+        await server.wait_closed()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        _global_httpserver.stop()
 
 
 asyncio.run(exec_tasks())

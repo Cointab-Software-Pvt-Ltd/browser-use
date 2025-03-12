@@ -26,7 +26,6 @@ from browser_use.controller.views import (
     SendKeysAction,
     SwitchTabAction,
     RequestAction,
-    IfConditionAction,
     PhysicalClickElementAction,
     GenerateTOTP,
 )
@@ -103,8 +102,8 @@ class Controller(Generic[Context]):
             'Do a physical mouse click by providing x,y coordinates',
             param_model=PhysicalClickElementAction)
         async def physical_mouse_click(params: PhysicalClickElementAction):
-            params.x = params.x / 0.8
-            params.y = params.y / 0.8
+            params.x = params.x
+            params.y = params.y
             pyautogui.moveTo(params.x, params.y, duration=2, tween=pyautogui.easeOutQuad)
             if params.long_press:
                 pyautogui.mouseDown(params.x, params.y, button='right' if params.right_click else 'left')
@@ -117,13 +116,6 @@ class Controller(Generic[Context]):
                     pyautogui.click(params.x, params.y, clicks=params.click_count)
             logger.info("Physical Mouse Clicked")
             return ActionResult(extracted_content="Physical Mouse Clicked")
-
-        @self.registry.action(
-            'If condition. LHS operator RHS. Returns true/false')
-        async def if_condition(params: IfConditionAction):
-            logger.info(params)
-            logger.info("If Condition Called")
-            return ActionResult(extracted_content="true", include_in_memory=True)
 
         @self.registry.action('Go back', param_model=NoParamsAction)
         async def go_back(_: NoParamsAction, browser: BrowserContext):
@@ -156,6 +148,7 @@ class Controller(Generic[Context]):
         @self.registry.action('Click element', param_model=ClickElementAction)
         async def click_element(params: ClickElementAction, browser: BrowserContext):
             session = await browser.get_session()
+
             if params.xpath is None:
                 if params.index not in await browser.get_selector_map():
                     raise Exception(

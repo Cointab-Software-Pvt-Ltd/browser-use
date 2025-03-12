@@ -1143,7 +1143,7 @@
             if (!!node.type && node.type == "TEXT_NODE" && !!node.isVisible) {
                 var pKey = keys.findIndex(pKey => {
                     var pNode = DOM_HASH_MAP[pKey];
-                    return (!pNode.highlightIndex && pNode.highlightIndex != 0 && !!pNode.children && pNode.children.length > 0 && pNode.children.indexOf(id) >= 0) && pNode.isTopElement && pNode.isVisible && !pNode.isInteractive;
+                    return (!pNode.highlightIndex && pNode.highlightIndex != 0 && !!pNode.children && pNode.children.length > 0 && pNode.children.indexOf(id) >= 0) && pNode.xpath;
                 })
                 if (pKey >= 0) {
                     pKey = keys[pKey]

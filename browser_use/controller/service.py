@@ -156,7 +156,7 @@ class Controller(Generic[Context]):
                 element_node = await browser.get_dom_element_by_index(params.index)
             else:
                 element_node = await browser.get_dom_element_by_xpath(params.xpath)
-            element_text = await browser.get_text(element_node)
+            element_text = await browser._get_text_node(element_node)
             if params.save_in_secret_with_key is not None:
                 browser.agent.sensitive_data[params.save_in_secret_with_key] = element_text
                 msg = f'🕒  Get Element Text for key, and saving in secret'

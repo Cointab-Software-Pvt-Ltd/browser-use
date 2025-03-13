@@ -13,6 +13,7 @@ import re
 import time
 import uuid
 from dataclasses import dataclass
+from importlib import resources
 from typing import TYPE_CHECKING, Optional, Callable
 
 from rebrowser_playwright._impl._errors import TimeoutError
@@ -874,12 +875,32 @@ class BrowserContext:
 
         try:
             await self.remove_highlights()
+            screenshot_b64_before = await self.take_screenshot()
             dom_service = DomService(page)
             content = await dom_service.get_clickable_elements(
                 focus_element=focus_element,
                 viewport_expansion=self.config.viewport_expansion,
                 highlight_elements=self.config.highlight_elements,
             )
+
+            locator_js_code = resources.read_text('browser_use.browser', 'locator.js')
+
+            for highlight_index in content.selector_map:
+                node = content.selector_map[highlight_index]
+                try:
+                    element_handle = await self.get_locate_element(node)
+                    try:
+                        eval_element = await element_handle.evaluate(locator_js_code)
+                        node.locator = eval_element['locator']
+                        node.all_unique_locators = eval_element['allUniqueLocators']
+                    except Exception as e:
+                        print(content.selector_map)
+                        print(highlight_index)
+                        print(str(e))
+                except Exception as e:
+                    print(content.selector_map)
+                    print(highlight_index)
+                    print(str(e))
 
             screenshot_b64 = await self.take_screenshot()
             pixels_above, pixels_below = await self.get_scroll_info(page)
@@ -890,6 +911,7 @@ class BrowserContext:
                 url=page.url,
                 title=await page.title(),
                 tabs=await self.get_tabs_info(),
+                screenshot_before=screenshot_b64_before,
                 screenshot=screenshot_b64,
                 pixels_above=pixels_above,
                 pixels_below=pixels_below,
@@ -1211,7 +1233,7 @@ class BrowserContext:
             raise BrowserError(f'Failed to input text into index {element_node.highlight_index}')
 
     @utils.time_execution_async('--get_text')
-    async def get_text(self, element_node: DOMElementNode):
+    async def _get_text_node(self, element_node: DOMElementNode):
         """
         Input text into an element with proper error handling and state management.
         Handles different types of input fields and ensures proper element state before input.

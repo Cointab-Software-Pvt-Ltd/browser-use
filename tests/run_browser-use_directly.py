@@ -21,6 +21,7 @@ _global_agent = None
 _global_history_file_path = "history.json"
 _global_secret_file_path = "secret.json"
 _global_cookies_file_path = "cookies.json"
+_global_gif_file_path = "gif.gif"
 
 _global_queue = asyncio.Queue()
 
@@ -113,7 +114,8 @@ async def run_org_agent(
                 browser=_global_browser,
                 browser_context=_global_browser_context,
                 max_actions_per_step=max_actions_per_step,
-                tool_calling_method=tool_calling_method
+                tool_calling_method=tool_calling_method,
+                generate_gif=_global_gif_file_path,
             )
         _global_browser_context.add_agent(_global_agent)
 
@@ -232,12 +234,14 @@ async def run_browser_agent(
 
 
 async def exec_tasks():
-    global _global_browser_context, _global_history_file_path, _global_secret_file_path, _global_cookies_file_path
+    global _global_browser_context, _global_history_file_path, _global_secret_file_path, _global_cookies_file_path, \
+        _global_gif_file_path
     print("Enter Flow Code: ")
     run_history = input()
     _global_history_file_path = "history" + ("_" + run_history if len(run_history) > 0 else "") + ".json"
     _global_secret_file_path = "secret" + ("_" + run_history if len(run_history) > 0 else "") + ".json"
     _global_cookies_file_path = "cookies" + ("_" + run_history if len(run_history) > 0 else "") + ".json"
+    _global_gif_file_path = "gif" + ("_" + run_history if len(run_history) > 0 else "") + ".gif"
     if len(run_history) == 0:
         print("New Flow to be created as no history code entered")
         while len(run_history) == 0:
@@ -246,6 +250,7 @@ async def exec_tasks():
             _global_history_file_path = "history_" + run_history + ".json"
             _global_secret_file_path = "secret_" + run_history + ".json"
             _global_cookies_file_path = "cookies" + ("_" + run_history if len(run_history) > 0 else "") + ".json"
+            _global_gif_file_path = "gif" + ("_" + run_history if len(run_history) > 0 else "") + ".gif"
     elif os.path.exists(_global_history_file_path) is False:
         print("New Flow to be created as history code entered is not present")
     is_new = True

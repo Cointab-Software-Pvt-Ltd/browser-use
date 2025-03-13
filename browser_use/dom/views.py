@@ -63,6 +63,8 @@ class DOMElementNode(DOMBaseNode):
     viewport_coordinates: Optional[CoordinateSet] = None
     page_coordinates: Optional[CoordinateSet] = None
     viewport_info: Optional[ViewportInfo] = None
+    locator: str | None = None
+    all_unique_locators: list[dict] | None = None
 
     def __repr__(self) -> str:
         tag_str = f'<{self.tag_name}'

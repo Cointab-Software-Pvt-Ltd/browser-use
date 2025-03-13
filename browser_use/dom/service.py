@@ -27,10 +27,9 @@ class ViewportInfo:
 
 
 class DomService:
-    def __init__(self, page: 'Page', is_text=False):
+    def __init__(self, page: 'Page'):
         self.page = page
         self.xpath_cache = {}
-        self.is_text = is_text
         self.js_code = resources.read_text('browser_use.dom', 'buildDomTree.js')
 
     # region - Clickable elements
@@ -62,8 +61,7 @@ class DomService:
             'doHighlightElements': highlight_elements,
             'focusHighlightIndex': focus_element,
             'viewportExpansion': viewport_expansion,
-            'debugMode': debug_mode,
-            'forTextElements': self.is_text,
+            'debugMode': debug_mode
         }
 
         try:

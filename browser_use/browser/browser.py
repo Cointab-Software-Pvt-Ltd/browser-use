@@ -266,11 +266,12 @@ class Browser:
         except requests.ConnectionError:
             logger.debug('No existing Chrome instance found, starting a new one')
 
+        debug_port = utils.get_open_port_for_remote_debug()
         # Start a new Chrome instance
         subprocess.Popen(
             [
                 self.config.chrome_instance_path,
-                '--remote-debugging-port=9222',
+                '--remote-debugging-port=' + str(debug_port),
                 f'--window-position={self.offset_x},{self.offset_y}',
                 f'--window-size={self.screen_size["width"]},{self.screen_size["height"]}',
             ] + self.config.extra_chromium_args +
@@ -282,7 +283,7 @@ class Browser:
         # Attempt to connect again after starting a new instance
         for _ in range(10):
             try:
-                response = requests.get('http://localhost:9222/json/version', timeout=2)
+                response = requests.get('http://localhost:' + str(debug_port) + '/json/version', timeout=2)
                 if response.status_code == 200:
                     break
             except requests.ConnectionError:
@@ -292,15 +293,14 @@ class Browser:
         # Attempt to connect again after starting a new instance
         try:
             browser = await playwright.chromium.connect_over_cdp(
-                endpoint_url='http://localhost:9222',
+                endpoint_url='http://localhost:' + str(debug_port),
                 timeout=20000,
             )
             return browser
         except Exception as e:
             logger.error(f'Failed to start a new Chrome instance.: {str(e)}')
             raise RuntimeError(
-                ' To start chrome in Debug mode, you need to close all existing Chrome instances and try again otherwise we can not connect to the instance.'
-            )
+                ' To start chrome in Debug mode, you need to close all existing Chrome instances and try again otherwise we can not connect to the instance.')
 
     async def _setup_standard_browser(self, playwright: Playwright) -> PlaywrightBrowser:
         """Sets up and returns a Playwright Browser instance with anti-detection measures."""

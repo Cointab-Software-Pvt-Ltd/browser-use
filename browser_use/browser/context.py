@@ -840,11 +840,11 @@ class BrowserContext:
         return structure
 
     @utils.time_execution_sync('--get_state')  # This decorator might need to be updated to handle async
-    async def get_state(self, is_text=False) -> BrowserState:
+    async def get_state(self) -> BrowserState:
         """Get the current state of the browser"""
         await self._wait_for_page_and_frames_load()
         session = await self.get_session()
-        session.cached_state = await self._update_state(is_text=is_text)
+        session.cached_state = await self._update_state()
 
         # Save cookies if a file is specified
         if self.config.cookies_file:
@@ -852,7 +852,7 @@ class BrowserContext:
 
         return session.cached_state
 
-    async def _update_state(self, focus_element: int = -1, is_text=False) -> BrowserState:
+    async def _update_state(self, focus_element: int = -1) -> BrowserState:
         """Update and return state."""
         session = await self.get_session()
 
@@ -874,7 +874,7 @@ class BrowserContext:
 
         try:
             await self.remove_highlights()
-            dom_service = DomService(page, is_text=is_text)
+            dom_service = DomService(page)
             content = await dom_service.get_clickable_elements(
                 focus_element=focus_element,
                 viewport_expansion=self.config.viewport_expansion,

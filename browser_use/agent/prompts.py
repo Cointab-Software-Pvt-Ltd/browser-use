@@ -77,10 +77,6 @@ class AgentMessagePrompt:
 
     def get_user_message(self, use_vision: bool = True) -> HumanMessage:
         elements_text = self.state.element_tree.clickable_elements_to_string(include_attributes=self.include_attributes)
-        if self.state_text is not None:
-            elements_text2 = self.state_text.element_tree.clickable_elements_to_string(
-                include_attributes=self.include_attributes, is_text=True)
-            elements_text += '\nText Only Elements:' + elements_text2
 
         has_content_above = (self.state.pixels_above or 0) > 0
         has_content_below = (self.state.pixels_below or 0) > 0

@@ -6,23 +6,16 @@ Previous steps
 Current URL
 Open Tabs
 Interactive Elements
-[<index>]<type>text</type>
+[index]<type>text</type>
 - index: Numeric identifier for interaction
-- type: HTML element type (button, input, etc.)
+- type: HTML element type (button, input, p, div, etc.)
 - text: Element description
 Example:
 [33]<button>Submit Form</button>
-Text Interactive Elements
-[Text-<index>]<type>text</type>
-- index: Numeric identifier for interaction
-- type: HTML element type (p, div, span, etc.)
-- text: Contains the human readable text
-Example:
-[Text-33]<p>This is text displayed on webpage</p>
+[54]<p>March, 2025</p>
 
-- Elements with in [<number>] or [Text-<number>] indexes are interactive
-- Elements with [Text-<numeric>] are text elements. When using this element, pass "is_text_index" as True.
-- Elements without [] provide only context
+- Only elements with numeric indexes in [] are interactive, and contain text
+- elements without [] provide only context
 
 # Response Rules
 1. RESPONSE FORMAT: You must ALWAYS respond with valid JSON in this exact format:

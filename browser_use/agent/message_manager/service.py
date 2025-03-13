@@ -143,44 +143,6 @@ class MessageManager:
         ).get_user_message(use_vision)
         self._add_message_with_tokens(state_message)
 
-    @utils.time_execution_sync('--add_state_message')
-    def add_state_message2(
-            self,
-            state: BrowserState,
-            state_text: BrowserState,
-            result: Optional[List[ActionResult]] = None,
-            step_info: Optional[AgentStepInfo] = None,
-            use_vision=True,
-    ) -> None:
-        """Add browser state as human message"""
-
-        # if keep in memory, add to directly to history and add state without result
-        if result:
-            for r in result:
-                if r.include_in_memory:
-                    if r.extracted_content:
-                        msg = HumanMessage(content='Action result: ' + str(r.extracted_content))
-                        self._add_message_with_tokens(msg)
-                    if r.error:
-                        # if endswith \n, remove it
-                        if r.error.endswith('\n'):
-                            r.error = r.error[:-1]
-                        # get only last line of error
-                        last_line = r.error.split('\n')[-1]
-                        msg = HumanMessage(content='Action error: ' + last_line)
-                        self._add_message_with_tokens(msg)
-                    result = None  # if result in history, we dont want to add it again
-
-        # otherwise add state message and result to next message (which will not stay in memory)
-        state_message = AgentMessagePrompt(
-            state,
-            result,
-            include_attributes=self.settings.include_attributes,
-            step_info=step_info,
-            state_text=state_text,
-        ).get_user_message(use_vision)
-        self._add_message_with_tokens(state_message)
-
     def add_model_output(self, model_output: AgentOutput) -> None:
         """Add model output as AI message"""
         tool_calls = [

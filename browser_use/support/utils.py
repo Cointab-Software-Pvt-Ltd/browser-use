@@ -1,9 +1,15 @@
 import json
+import logging
 import os
+import random
+import sys
 import time
+from functools import wraps
 from pathlib import Path
+from typing import Any, Callable, Coroutine, ParamSpec, TypeVar
 from typing import Dict, Optional
 
+import psutil
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_mistralai import ChatMistralAI
@@ -12,12 +18,6 @@ from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 from browser_use.support.constants import *
 from browser_use.support.llm import DeepSeekR1ChatOpenAI, DeepSeekR1ChatOllama
-
-
-import logging
-import sys
-from functools import wraps
-from typing import Any, Callable, Coroutine, ParamSpec, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +105,7 @@ def singleton(cls):
         return instance[0]
 
     return wrapper
+
 
 def handle_api_key_error(provider: str, env_var: str):
     """
@@ -332,3 +333,14 @@ def fix_history_save_to_file(history, file_path):
     move_xpath_from_interacted_element_to_action(history)
     final = {"history": history}
     json.dump(final, open(file_path, 'w'))
+
+
+def get_open_port_for_remote_debug():
+    open_connections = psutil.net_connections()
+    open_ports = []
+    for open_connection in open_connections:
+        open_ports.append(open_connection.laddr.port)
+    debug_port = int(random.random() * 10000) + 50000
+    while debug_port in open_ports:
+        debug_port = int(random.random() * 10000) + 50000
+    return debug_port

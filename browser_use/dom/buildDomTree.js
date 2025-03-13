@@ -3,13 +3,10 @@
         doHighlightElements: true,
         focusHighlightIndex: -1,
         viewportExpansion: 0,
-        debugMode: false,
-        forTextElements: false,
+        debugMode: false
     }
 ) => {
-    let {doHighlightElements, focusHighlightIndex, viewportExpansion, debugMode, forTextElements} = args;
-    const doHighlightElementsIn = !!doHighlightElements;
-    doHighlightElements = forTextElements ? false : doHighlightElementsIn;
+    const {doHighlightElements, focusHighlightIndex, viewportExpansion, debugMode} = args;
     let highlightIndex = 0; // Reset highlight index
 
     // Add timing stack to handle recursion
@@ -497,7 +494,7 @@
         const interactiveElements = new Set([
             "a", "button", "details", "embed", "input", "menu", "menuitem",
             "object", "select", "textarea", "canvas", "summary", "dialog",
-            "banner", "label"
+            "banner"
         ]);
 
         const interactiveRoles = new Set(['button-icon', 'dialog', 'button-text-icon-only', 'treeitem', 'alert', 'grid', 'progressbar', 'radio', 'checkbox', 'menuitem', 'option', 'switch', 'dropdown', 'scrollbar', 'combobox', 'a-button-text', 'button', 'region', 'textbox', 'tabpanel', 'tab', 'click', 'button-text', 'spinbutton', 'a-button-inner', 'link', 'menu', 'slider', 'listbox', 'a-dropdown-button', 'button-icon-only', 'searchbox', 'menuitemradio', 'tooltip', 'tree', 'menuitemcheckbox']);
@@ -1128,65 +1125,57 @@
         }
     }
 
-    if (forTextElements) {
-        highlightIndex = 0
-        let keys = Object.keys(DOM_HASH_MAP);
-        keys.forEach(id => {
-            let node = DOM_HASH_MAP[id];
-            if (!!node.highlightIndex || node.highlightIndex != 0) {
-                node.highlightIndex = null;
-                delete node.highlightIndex
-            }
-        })
-        keys.forEach(id => {
-            let node = DOM_HASH_MAP[id];
-            if (!!node.type && node.type == "TEXT_NODE" && !!node.isVisible) {
-                var pKey = keys.findIndex(pKey => {
-                    var pNode = DOM_HASH_MAP[pKey];
-                    return (!pNode.highlightIndex && pNode.highlightIndex != 0 && !!pNode.children && pNode.children.length > 0 && pNode.children.indexOf(id) >= 0) && pNode.xpath;
-                })
-                if (pKey >= 0) {
-                    pKey = keys[pKey]
-                    var pNode = DOM_HASH_MAP[pKey];
-                    pNode.isInteractive = true;
-                    pNode.isInViewport = true;
-                    pNode.highlightIndex = highlightIndex++;
+    let keys = Object.keys(DOM_HASH_MAP);
 
-                    if (doHighlightElementsIn) {
-                        if (focusHighlightIndex >= 0) {
-                            if (focusHighlightIndex === pNode.highlightIndex) {
-                                highlightElement(pNode.node, pNode.highlightIndex, pNode.parentIframe);
-                            }
-                        } else {
-                            highlightElement(pNode.node, pNode.highlightIndex, pNode.parentIframe);
-                        }
+    // Highlight Last Leaf Nodes
+    keys.forEach(key => {
+        let node = DOM_HASH_MAP[key]
+        if (!node.highlightIndex && node.highlightIndex != 0 && node.isTopElement && node.isVisible && !node.isInteractive && (!node.children || node.children.length == 0)) {
+            node.isInteractive = true;
+            node.isInViewport = true;
+            node.highlightIndex = highlightIndex++;
+
+            if (doHighlightElements) {
+                if (focusHighlightIndex >= 0) {
+                    if (focusHighlightIndex === node.highlightIndex) {
+                        highlightElement(node.node, node.highlightIndex, node.parentIframe);
                     }
+                } else {
+                    highlightElement(node.node, node.highlightIndex, node.parentIframe);
                 }
             }
-        })
-    } else {
-        Object.keys(DOM_HASH_MAP).forEach(id => {
-            let node = DOM_HASH_MAP[id]
-            if (!node.highlightIndex && node.highlightIndex != 0 && node.isTopElement && node.isVisible && !node.isInteractive && (!node.children || node.children.length == 0)) {
-                node.isInteractive = true;
-                node.isInViewport = true;
-                node.highlightIndex = highlightIndex++;
+        }
+    })
+
+    // Highlight Text Nodes
+    keys.forEach(id => {
+        let node = DOM_HASH_MAP[id];
+        if (!!node.type && node.type == "TEXT_NODE" && !!node.isVisible) {
+            var pKey = keys.findIndex(pKey => {
+                var pNode = DOM_HASH_MAP[pKey];
+                return (!pNode.highlightIndex && pNode.highlightIndex != 0 && !!pNode.children && pNode.children.length > 0 && pNode.children.indexOf(id) >= 0) && pNode.xpath;
+            })
+            if (pKey >= 0) {
+                pKey = keys[pKey]
+                var pNode = DOM_HASH_MAP[pKey];
+                pNode.isInteractive = true;
+                pNode.isInViewport = true;
+                pNode.highlightIndex = highlightIndex++;
 
                 if (doHighlightElements) {
                     if (focusHighlightIndex >= 0) {
-                        if (focusHighlightIndex === node.highlightIndex) {
-                            highlightElement(node.node, node.highlightIndex, node.parentIframe);
+                        if (focusHighlightIndex === pNode.highlightIndex) {
+                            highlightElement(pNode.node, pNode.highlightIndex, pNode.parentIframe);
                         }
                     } else {
-                        highlightElement(node.node, node.highlightIndex, node.parentIframe);
+                        highlightElement(pNode.node, pNode.highlightIndex, pNode.parentIframe);
                     }
                 }
             }
-        })
-    }
-
-    Object.keys(DOM_HASH_MAP).forEach(id => {
-        let node = DOM_HASH_MAP[id]
+        }
+    })
+    keys.forEach(key => {
+        let node = DOM_HASH_MAP[key]
 
         node.node = null;
         node.parentIframe = null;

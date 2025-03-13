@@ -162,17 +162,12 @@ class AgentHistory(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
     @staticmethod
-    def get_interacted_element(model_output: AgentOutput, selector_map: SelectorMap, selector_map_text: SelectorMap) -> \
-    list[DOMHistoryElement | None]:
+    def get_interacted_element(model_output: AgentOutput, selector_map: SelectorMap) -> list[DOMHistoryElement | None]:
         elements = []
         for action in model_output.action:
             index = action.get_index()
-            is_text = action.get_is_text_index()
-            if index is not None and is_text is False and index in selector_map:
+            if index is not None and index in selector_map:
                 el: DOMElementNode = selector_map[index]
-                elements.append(HistoryTreeProcessor.convert_dom_element_to_history_element(el))
-            elif index is not None and is_text is True and index in selector_map_text:
-                el: DOMElementNode = selector_map_text[index]
                 elements.append(HistoryTreeProcessor.convert_dom_element_to_history_element(el))
             else:
                 elements.append(None)

@@ -329,7 +329,6 @@ class Agent(Generic[Context]):
     async def step(self, step_info: Optional[AgentStepInfo] = None) -> None:
         """Execute one step of the task"""
         logger.info(f'📍 Step {self.state.n_steps}')
-        state_text = None
         state = None
         model_output = None
         result: list[ActionResult] = []
@@ -337,12 +336,11 @@ class Agent(Generic[Context]):
         tokens = 0
 
         try:
-            state_text = await self.browser_context.get_state(is_text=True)
             state = await self.browser_context.get_state()
 
             await self._raise_if_stopped_or_paused()
 
-            self._message_manager.add_state_message2(state, state_text, self.state.last_result, step_info,
+            self._message_manager.add_state_message(state, self.state.last_result, step_info,
                                                      self.settings.use_vision)
 
             # Run planner at specified intervals if planner is configured
@@ -424,14 +422,14 @@ class Agent(Generic[Context]):
             if not result:
                 return
 
-            if state or state_text:
+            if state:
                 metadata = StepMetadata(
                     step_number=self.state.n_steps,
                     step_start_time=step_start_time,
                     step_end_time=step_end_time,
                     input_tokens=tokens,
                 )
-                self._make_history_item(model_output, state, state_text, result, metadata)
+                self._make_history_item(model_output, state, result, metadata)
 
     @utils.time_execution_async('--handle_step_error (agent)')
     async def _handle_step_error(self, error: Exception) -> list[ActionResult]:
@@ -472,14 +470,13 @@ class Agent(Generic[Context]):
             self,
             model_output: AgentOutput | None,
             state: BrowserState,
-            state_text: BrowserState,
             result: list[ActionResult],
             metadata: Optional[StepMetadata] = None,
     ) -> None:
         """Create and store history item"""
 
         if model_output:
-            interacted_elements = AgentHistory.get_interacted_element(model_output, state.selector_map, state_text.selector_map)
+            interacted_elements = AgentHistory.get_interacted_element(model_output, state.selector_map)
         else:
             interacted_elements = [None]
 

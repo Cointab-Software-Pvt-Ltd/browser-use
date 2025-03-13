@@ -148,11 +148,6 @@ class Controller(Generic[Context]):
         # wait for x seconds
         @self.registry.action('Get Text from some text element in WebPage', param_model=GetElementText)
         async def get_element_text(params: GetElementText, browser: BrowserContext):
-            session = await browser.get_session()
-
-            if params.is_text_index:
-                await browser.get_state(is_text=True)
-
             if params.xpath is None:
                 if params.index not in await browser.get_selector_map():
                     raise Exception(
@@ -174,9 +169,6 @@ class Controller(Generic[Context]):
         @self.registry.action('Click element', param_model=ClickElementAction)
         async def click_element(params: ClickElementAction, browser: BrowserContext):
             session = await browser.get_session()
-
-            if params.is_text_index:
-                await browser.get_state(is_text=True)
 
             if params.xpath is None:
                 if params.index not in await browser.get_selector_map():
